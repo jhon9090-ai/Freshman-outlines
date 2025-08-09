@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" class="dark theme-purple">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Outlines</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --background-dark: #0A001F;
+        --background-panel: rgba(26, 17, 44, 0.6);
+        --text-light: #e2e8f0;
+        --text-muted: #94a3b8; /* slate-400 */
+        --border-color: rgba(var(--primary-rgb), 0.15);
+        --border-muted: #475569; /* slate-600 */
+        --border-interactive-rgb: var(--primary-rgb);
+        --primary-rgb: 168, 85, 247; /* default purple */
+        --accent-rgb: 251, 191, 36; /* amber */
+      }
+      .theme-purple {
+        --primary-rgb: 168, 85, 247;
+        --background-dark: #0A001F;
+        --background-panel: rgba(26, 17, 44, 0.6);
+      }
+      .theme-blue {
+        --primary-rgb: 59, 130, 246;
+        --background-dark: #05102a;
+        --background-panel: rgba(17, 24, 39, 0.6);
+      }
+      .theme-green {
+        --primary-rgb: 34, 197, 94;
+        --background-dark: #041c10;
+        --background-panel: rgba(4, 28, 16, 0.6);
+      }
+      .theme-rose {
+        --primary-rgb: 244, 63, 94;
+        --background-dark: #2a050d;
+        --background-panel: rgba(42, 5, 13, 0.6);
+      }
+
+      body {
+        background-color: var(--background-dark);
+        color: var(--text-light);
+        overflow: hidden;
+        font-family: 'Inter', sans-serif;
+      }
+      .font-heading {
+        font-family: 'Playfair Display', serif;
+        font-weight: 700;
+      }
+      .glass-panel {
+        background-color: var(--background-panel);
+        border: 1px solid var(--border-color);
+      }
+      .bg-grid {
+        background-image:
+          linear-gradient(rgba(var(--primary-rgb), 0.07) 1px, transparent 1px),
+          linear-gradient(to right, rgba(var(--primary-rgb), 0.07) 1px, transparent 1px);
+        background-size: 3rem 3rem;
+      }
+      /* Custom scrollbar for webkit browsers */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(var(--primary-rgb), 0.1);
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(var(--primary-rgb), 0.3);
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(var(--primary-rgb), 0.5);
+      }
+      h1, h2, h3, h4, h5, h6 {
+          font-weight: 700;
+      }
+      p, li, span, div, button, label, input, select, option, summary {
+          font-weight: 500;
+      }
+      
+      /* Accordion styles for smooth open/close */
+      .accordion-content {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.3s ease-out;
+      }
+      details[open] > .accordion-content,
+      .accordion-content.expanded {
+        grid-template-rows: 1fr;
+      }
+      .accordion-content-inner {
+          overflow: hidden;
+      }
+      details > summary {
+          list-style: none; /* remove triangle marker */
+      }
+      details > summary::-webkit-details-marker {
+          display: none; /* remove triangle marker for webkit */
+      }
+
+      /* Added animations */
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+      @keyframes zoomIn {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+      @keyframes zoomOut {
+        from { transform: scale(1); opacity: 1; }
+        to { transform: scale(0.95); opacity: 0; }
+      }
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes fadeInSlideUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+      .animate-fadeOut { animation: fadeOut 0.3s ease-out forwards; }
+      .animate-zoomIn { animation: zoomIn 0.3s ease-out forwards; }
+      .animate-zoomOut { animation: zoomOut 0.3s ease-out forwards; }
+      .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; }
+      .animate-fadeInSlideUp { animation: fadeInSlideUp 0.4s ease-out forwards; }
+
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "react/": "https://esm.sh/react@^19.1.1/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.12.0",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@^4.5.136",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <!-- 3D Layered Background -->
+    <div class="fixed top-[-50%] left-[-50%] w-[200%] h-[200%] -z-10 bg-gradient-radial from-[rgba(var(--primary-rgb),0.3)] via-[rgba(var(--primary-rgb),0.1)] to-transparent animate-[spin_20s_linear_infinite]"></div>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

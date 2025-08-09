@@ -1,0 +1,6 @@
+{
+  "name": "Intelligent Study Outline Generator",
+  "description": "An AI-powered application that transforms study materials into a curriculum-style roadmap. It features a Kanban-style interface for tracking progress, a detailed side-peek panel for learning objectives, and advanced AI analysis to enrich study content.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
