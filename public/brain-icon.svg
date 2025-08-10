@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="250" fill="#FFF8E1" stroke="#4A2511" stroke-width="4"/>
+  
+  <!-- Brain outline -->
+  <path d="M160 150C180 130 220 120 250 130C280 140 290 160 300 170C310 180 330 170 350 160C370 150 390 160 400 180C410 200 400 220 380 240C360 260 350 270 360 290C370 310 360 330 340 340C320 350 300 340 290 320C280 300 270 290 256 290C242 290 232 300 222 320C212 340 192 350 172 340C152 330 142 310 152 290C162 270 152 260 132 240C112 220 102 200 112 180C122 160 140 170 160 150Z" fill="#FFF8E1" stroke="#4A2511" stroke-width="8"/>
+  
+  <!-- Brain details -->
+  <path d="M190 180C200 170 220 160 240 170" stroke="#4A2511" stroke-width="6" fill="none"/>
+  <path d="M320 180C310 170 290 160 270 170" stroke="#4A2511" stroke-width="6" fill="none"/>
+  <path d="M210 200C220 220 230 260 230 280" stroke="#4A2511" stroke-width="6" fill="none"/>
+  <path d="M300 200C290 220 280 260 280 280" stroke="#4A2511" stroke-width="6" fill="none"/>
+  <path d="M170 260C190 280 210 300 230 310" stroke="#4A2511" stroke-width="6" fill="none"/>
+  <path d="M340 260C320 280 300 300 280 310" stroke="#4A2511" stroke-width="6" fill="none"/>
+  <path d="M200 190C210 200 220 220 230 230" stroke="#4A2511" stroke-width="4" fill="none"/>
+  <path d="M310 190C300 200 290 220 280 230" stroke="#4A2511" stroke-width="4" fill="none"/>
+</svg>
