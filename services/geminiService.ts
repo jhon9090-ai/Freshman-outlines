@@ -1,5 +1,6 @@
 
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { AdvancedSettings, StudyOutline, SubTopic, MCQ, LearningObjective, ExamAnalysis, MainTopic, UnitOutline, CurriculumSource } from '../types';
 
@@ -7,7 +8,7 @@ const SETTINGS_STORAGE_KEY = 'app-settings';
 
 const getAiClient = (): GoogleGenAI => {
     const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    const apiKey = savedSettings ? JSON.parse(savedSettings).apiKey : null;
+    const apiKey = savedSettings ? JSON.parse(savedSettings).geminiApiKey : null;
 
     if (!apiKey) {
         throw new Error("API Key not found. Please set your Gemini API key in the settings panel.");

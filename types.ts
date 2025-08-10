@@ -109,3 +109,12 @@ export interface CurriculumSubject {
 export interface CurriculumData {
   [key: string]: CurriculumSubject;
 }
+
+export interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
