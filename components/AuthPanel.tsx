@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import Modal from './ui/Modal';
-import { registerUser, loginUser, logoutUser, getCurrentUser, onAuthStateChange } from '../services/firebaseService';
+import { registerUser, loginUser, logoutUser, getCurrentUser, onAuthStateChange, signInWithGoogle } from '../services/firebaseService';
+import GoogleIcon from './icons/GoogleIcon';
 
 interface AuthPanelProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ const AuthPanel: React.FC<AuthPanelProps> = ({ isOpen, onClose, onAuthStateChang
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -65,6 +67,20 @@ const AuthPanel: React.FC<AuthPanelProps> = ({ isOpen, onClose, onAuthStateChang
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setIsGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      onClose();
+    } catch (err) {
+      console.error('Google Sign-In error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred with Google Sign-In');
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -164,8 +180,36 @@ const AuthPanel: React.FC<AuthPanelProps> = ({ isOpen, onClose, onAuthStateChang
             >
               {isLoading ? 'Processing...' : (isRegistering ? 'Register' : 'Login')}
             </button>
+
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-600"></div>
+              </div>
+              <div className="relative px-4 text-sm text-slate-400 bg-slate-900">
+                or continue with
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading}
+              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-lg bg-white text-black font-semibold hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isGoogleLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
+                  Connecting...
+                </span>
+              ) : (
+                <>
+                  <GoogleIcon className="w-5 h-5" />
+                  Sign {isRegistering ? 'up' : 'in'} with Google
+                </>
+              )}
+            </button>
             
-            <div className="text-center">
+            <div className="text-center mt-4">
               <button
                 type="button"
                 onClick={toggleAuthMode}

@@ -1,6 +1,6 @@
 import React from 'react';
 
 // This component is no longer used as Firebase authentication has been removed.
-const LoginPrompt: React.FC = () => null;
+const AuthModal: React.FC = () => null;
 
-export default LoginPrompt;
+export default AuthModal;

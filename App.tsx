@@ -1,9 +1,9 @@
 
+
+
 import React, { useState, useEffect, useCallback } from 'react';
-import type { User } from './services/dataService';
-import { StudyOutline, AppStatus, AppView, AdvancedSettings, CurriculumSource, FirebaseConfig } from './types';
+import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource } from './types';
 import { generateStudyOutline } from './services/geminiService';
-import { initializeFirebase, onAuthChange, addOutline, updateOutline, deleteOutline, deleteOutlineBySource, onOutlinesUpdate } from './services/dataService';
 import InputPanel from './components/InputPanel';
 import StudyView from './components/StudyView';
 import Spinner from './components/ui/Spinner';
@@ -11,34 +11,25 @@ import CurriculumView from './components/CurriculumView';
 import Dashboard from './components/Dashboard';
 import SettingsPanel from './components/SettingsPanel';
 import SettingsIcon from './components/icons/SettingsIcon';
-import LoginPrompt from './components/LoginPrompt';
 
 const SETTINGS_STORAGE_KEY = 'app-settings';
-
-interface AppSettings {
-  theme: string;
-  advSettings: AdvancedSettings;
-  geminiApiKey: string;
-  firebaseConfig: FirebaseConfig;
-}
+const OUTLINES_STORAGE_KEY = 'app-outlines';
 
 const defaultSettings: AppSettings = {
   theme: 'purple',
+  backgroundStyle: 'gridline',
+  customAiConfig: {
+    provider: 'gemini',
+    customModelName: '',
+    customApiKey: '',
+  },
   advSettings: {
     outlineDepth: 'Standard',
     learningGoals: '',
     studyPace: 'Moderate',
     subjectEmphasis: '',
+    intention: 'Default',
   },
-  geminiApiKey: '',
-  firebaseConfig: {
-    apiKey: "AIzaSyDT0p9EYECuFJqT5C26Q7J_PD5r265f_hU",
-    authDomain: "intelligent-study-outlines.firebaseapp.com",
-    projectId: "intelligent-study-outlines",
-    storageBucket: "intelligent-study-outlines.appspot.com",
-    messagingSenderId: "637509822315",
-    appId: "1:637509822315:web:cb2babf49e88c8824f8e2e",
-  }
 };
 
 const TabButton: React.FC<{
@@ -64,96 +55,99 @@ export default function App(): React.ReactNode {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<AppView>('curriculum');
   const [previousView, setPreviousView] = useState<AppView>('curriculum');
-  const [outlines, setOutlines] = useState<StudyOutline[]>([]);
+  
+  const [outlines, setOutlines] = useState<StudyOutline[]>(() => {
+    try {
+      const savedOutlines = localStorage.getItem(OUTLINES_STORAGE_KEY);
+      return savedOutlines ? JSON.parse(savedOutlines) : [];
+    } catch (e) {
+      console.error("Failed to load outlines from storage", e);
+      return [];
+    }
+  });
+
   const [activeOutline, setActiveOutline] = useState<StudyOutline | null>(null);
   const [selectedSubjectKey, setSelectedSubjectKey] = useState<string | null>(null);
   
-  // Auth and Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [firebaseInitialized, setFirebaseInitialized] = useState(false);
-  const [appSettings, setAppSettings] = useState<AppSettings>(defaultSettings);
+  
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => {
+      try {
+        const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          // Merge saved settings with defaults to avoid errors if new settings are added
+          return {
+            ...defaultSettings,
+            ...parsed,
+            advSettings: {
+              ...defaultSettings.advSettings,
+              ...(parsed.advSettings || {})
+            },
+            customAiConfig: {
+              ...defaultSettings.customAiConfig,
+              ...(parsed.customAiConfig || {})
+            }
+          };
+        }
+      } catch (e) {
+        console.error("Failed to load settings from storage", e);
+      }
+      return defaultSettings;
+  });
 
-
-  // Load settings from localStorage on initial mount
+  // Effect to persist outlines to localStorage
   useEffect(() => {
     try {
-      const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (savedSettings) {
-        // Merge saved settings with defaults to avoid breakages if shape changes
-        const parsed = JSON.parse(savedSettings);
-        setAppSettings(prev => ({ ...prev, ...parsed, firebaseConfig: defaultSettings.firebaseConfig })); // always use hardcoded firebase config
-      }
+      localStorage.setItem(OUTLINES_STORAGE_KEY, JSON.stringify(outlines));
     } catch (e) {
-      console.error("Failed to load settings from storage", e);
+      console.error("Failed to save outlines to storage", e);
     }
-  }, []);
+  }, [outlines]);
   
-  // Apply theme and save settings when they change
+  // Effect to apply and persist settings
   useEffect(() => {
     document.documentElement.className = '';
     document.documentElement.classList.add('dark', `theme-${appSettings.theme}`);
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(appSettings));
-
-    // Initialize Firebase when config changes
-    const services = initializeFirebase(appSettings.firebaseConfig);
-    setFirebaseInitialized(!!services);
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(appSettings));
+    } catch (e) {
+      console.error("Failed to save settings to storage", e);
+    }
   }, [appSettings]);
-
-
-  // Listen to auth changes and fetch data
-  useEffect(() => {
-    if (!firebaseInitialized) return;
-
-    const authUnsubscribe = onAuthChange(newUser => {
-        setUser(newUser);
-        if (!newUser) {
-            setOutlines([]); // Clear data on logout
-        }
-    });
-    
-    let outlinesUnsubscribe: () => void = () => {};
-    if (user) {
-        outlinesUnsubscribe = onOutlinesUpdate(user.uid, setOutlines, (err) => {
-            console.error(err);
-            setError("Could not sync your outlines. Check your connection or Firestore rules.");
-        });
-    }
-
-    return () => {
-        authUnsubscribe();
-        outlinesUnsubscribe();
-    }
-  }, [user, firebaseInitialized]);
-
+  
+  // Effect to keep active outline in sync with the main list
   useEffect(() => {
     if (activeOutline) {
         const freshOutline = outlines.find(o => o.id === activeOutline.id);
         if (freshOutline && JSON.stringify(freshOutline) !== JSON.stringify(activeOutline)) {
             setActiveOutline(freshOutline);
+        } else if (!freshOutline) {
+          // If active outline was deleted, go back
+          handleBackToTabs();
         }
     }
   }, [outlines, activeOutline]);
 
   const handleGenerate = useCallback(async (generationInput: string, title: string, advancedSettings: AdvancedSettings, isTheme: boolean = false, curriculumSource?: CurriculumSource) => {
-    if (!user) {
-        setError("You must be logged in to generate outlines.");
-        return;
-    }
     setPreviousView(view);
     setStatus('loading');
     setError(null);
     try {
-      const result = await generateStudyOutline(generationInput, advancedSettings, isTheme);
-      const newOutline: Omit<StudyOutline, 'id'> = {
+      // Use the *current* appSettings, but with the specific advanced settings for this one generation
+      const settingsForGeneration = { ...appSettings, advSettings: advancedSettings };
+      const result = await generateStudyOutline(generationInput, settingsForGeneration, isTheme);
+      
+      const newOutline: StudyOutline = {
         ...result,
+        id: `outline-${Date.now()}`,
         title: title,
         createdAt: new Date().toISOString(),
-        curriculumSource: curriculumSource,
+        ...(curriculumSource && { curriculumSource }),
       };
       
-      const addedOutline = await addOutline(user.uid, newOutline);
-      setActiveOutline(addedOutline);
+      setOutlines(prev => [...prev, newOutline]);
+      setActiveOutline(newOutline);
       setView('study');
       setStatus('success');
     } catch (err) {
@@ -161,7 +155,14 @@ export default function App(): React.ReactNode {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
       setStatus('error');
     }
-  }, [outlines, view, user]);
+  }, [view, appSettings]);
+  
+  const handleUpdateDefaultAdvancedSettings = (newDefaults: AdvancedSettings) => {
+      setAppSettings(prev => ({
+          ...prev,
+          advSettings: newDefaults,
+      }));
+  };
 
   const handleSelectOutline = (outlineId: string) => {
     const outlineToOpen = outlines.find(o => o.id === outlineId);
@@ -173,36 +174,44 @@ export default function App(): React.ReactNode {
   };
 
   const handleDeleteOutline = (outlineId: string) => {
-    if (!user) return;
-    deleteOutline(user.uid, outlineId);
+    setOutlines(prev => prev.filter(o => o.id !== outlineId));
   };
   
   const handleDeleteAllOutlines = () => {
-    if(!user) return;
-    outlines.forEach(outline => deleteOutline(user.uid, outline.id));
-    setIsSettingsOpen(false); // Close panel after action
+    setOutlines([]);
+    setIsSettingsOpen(false);
   }
 
   const handleDeleteOutlineBySource = (source: CurriculumSource) => {
-    if (!user) return;
-    deleteOutlineBySource(user.uid, source);
+    setOutlines(prev => prev.filter(o => {
+        if (!o.curriculumSource) return true;
+        return !(
+            o.curriculumSource.subjectKey === source.subjectKey &&
+            o.curriculumSource.theme === source.theme &&
+            o.curriculumSource.unit === source.unit
+        );
+    }));
   };
 
   const handleRenameOutline = (outlineId: string, newTitle: string) => {
-    if (!user) return;
-    updateOutline(user.uid, outlineId, { title: newTitle });
+    setOutlines(prev => prev.map(o => o.id === outlineId ? { ...o, title: newTitle } : o));
   };
 
   const handleUpdateProgress = (objectiveId: string, isComplete: boolean) => {
-    if (!activeOutline || !user) return;
+    if (!activeOutline) return;
     
-    const completed = new Set(activeOutline.completedObjectives);
-    if (isComplete) {
-        completed.add(objectiveId);
-    } else {
-        completed.delete(objectiveId);
-    }
-    updateOutline(user.uid, activeOutline.id, { completedObjectives: Array.from(completed) });
+    setOutlines(prevOutlines => prevOutlines.map(o => {
+        if (o.id === activeOutline.id) {
+            const completed = new Set(o.completedObjectives);
+            if (isComplete) {
+                completed.add(objectiveId);
+            } else {
+                completed.delete(objectiveId);
+            }
+            return { ...o, completedObjectives: Array.from(completed) };
+        }
+        return o;
+    }));
   };
   
   const handleBackToTabs = () => {
@@ -222,6 +231,7 @@ export default function App(): React.ReactNode {
       return (
         <StudyView
           outline={activeOutline}
+          appSettings={appSettings}
           onBack={handleBackToTabs}
           onUpdateProgress={handleUpdateProgress}
         />
@@ -246,48 +256,45 @@ export default function App(): React.ReactNode {
                     </button>
                 </div>
 
-                {!user && firebaseInitialized && <LoginPrompt onOpenSettings={() => setIsSettingsOpen(true)}/>}
+                <>
+                  <div className="flex justify-center border-b border-white/10 mb-6">
+                      <TabButton tabId="curriculum" currentTab={tabView} onClick={(tab) => setView(tab)}>Curriculum</TabButton>
+                      <TabButton tabId="create" currentTab={tabView} onClick={(tab) => { setView(tab); setSelectedSubjectKey(null); }}>Create New</TabButton>
+                      <TabButton tabId="outlines" currentTab={tabView} onClick={(tab) => { setView(tab); setSelectedSubjectKey(null); }}>My Outlines</TabButton>
+                  </div>
 
-                {user && (
-                  <>
-                    <div className="flex justify-center border-b border-white/10 mb-6">
-                        <TabButton tabId="curriculum" currentTab={tabView} onClick={(tab) => setView(tab)}>Curriculum</TabButton>
-                        <TabButton tabId="create" currentTab={tabView} onClick={(tab) => { setView(tab); setSelectedSubjectKey(null); }}>Create New</TabButton>
-                        <TabButton tabId="outlines" currentTab={tabView} onClick={(tab) => { setView(tab); setSelectedSubjectKey(null); }}>My Outlines</TabButton>
-                    </div>
-
-                    <div key={tabView} className="flex-1 overflow-y-auto pr-2 animate-fadeInSlideUp">
-                        {tabView === 'create' && (
-                            <InputPanel
-                                onGenerate={handleGenerate}
-                                status={status}
-                                error={error}
-                                onClearError={() => setError(null)}
-                                defaultSettings={appSettings.advSettings}
-                            />
-                        )}
-                        {tabView === 'curriculum' && (
-                            <CurriculumView
-                                onGenerate={handleGenerate}
-                                outlines={outlines}
-                                onSelectOutline={handleSelectOutline}
-                                onDeleteOutlineBySource={handleDeleteOutlineBySource}
-                                selectedSubjectKey={selectedSubjectKey}
-                                setSelectedSubjectKey={setSelectedSubjectKey}
-                                defaultSettings={appSettings.advSettings}
-                            />
-                        )}
-                        {tabView === 'outlines' && (
-                            <Dashboard 
-                                outlines={outlines}
-                                onSelectOutline={handleSelectOutline}
-                                onDeleteOutline={handleDeleteOutline}
-                                onRenameOutline={handleRenameOutline}
-                            />
-                        )}
-                    </div>
-                  </>
-                )}
+                  <div key={tabView} className="flex-1 overflow-y-auto pr-2 animate-fadeInSlideUp">
+                      {tabView === 'create' && (
+                          <InputPanel
+                              onGenerate={handleGenerate}
+                              status={status}
+                              error={error}
+                              onClearError={() => setError(null)}
+                              defaultSettings={appSettings.advSettings}
+                              onUpdateDefaultSettings={handleUpdateDefaultAdvancedSettings}
+                          />
+                      )}
+                      {tabView === 'curriculum' && (
+                          <CurriculumView
+                              onGenerate={handleGenerate}
+                              outlines={outlines}
+                              onSelectOutline={handleSelectOutline}
+                              onDeleteOutlineBySource={handleDeleteOutlineBySource}
+                              selectedSubjectKey={selectedSubjectKey}
+                              setSelectedSubjectKey={setSelectedSubjectKey}
+                              defaultSettings={appSettings.advSettings}
+                          />
+                      )}
+                      {tabView === 'outlines' && (
+                          <Dashboard 
+                              outlines={outlines}
+                              onSelectOutline={handleSelectOutline}
+                              onDeleteOutline={handleDeleteOutline}
+                              onRenameOutline={handleRenameOutline}
+                          />
+                      )}
+                  </div>
+                </>
             </div>
       </div>
     );
@@ -295,7 +302,7 @@ export default function App(): React.ReactNode {
 
   if (status === 'loading') {
     return (
-      <div className="flex flex-col items-center justify-center h-screen w-screen text-slate-200 font-sans antialiased bg-grid">
+      <div className={`flex flex-col items-center justify-center h-screen w-screen text-slate-200 font-sans antialiased bg-${appSettings.backgroundStyle}`}>
         <Spinner className="h-12 w-12 text-[rgba(var(--primary-rgb),1)]" />
         <p className="mt-4 text-lg text-slate-300 animate-pulse">Generating your study outline...</p>
         <p className="text-sm text-slate-400">The AI is thinking. This may take a moment.</p>
@@ -304,7 +311,7 @@ export default function App(): React.ReactNode {
   }
   
   return (
-    <div className="h-screen w-screen text-slate-200 font-sans antialiased bg-grid overflow-hidden">
+    <div className={`h-screen w-screen text-slate-200 font-sans antialiased bg-${appSettings.backgroundStyle} overflow-hidden`}>
         {renderContent()}
         <SettingsPanel 
             isOpen={isSettingsOpen}
@@ -312,8 +319,6 @@ export default function App(): React.ReactNode {
             appSettings={appSettings}
             onAppSettingsChange={setAppSettings}
             onClearAllData={handleDeleteAllOutlines}
-            user={user}
-            firebaseInitialized={firebaseInitialized}
         />
     </div>
   );

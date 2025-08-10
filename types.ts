@@ -1,4 +1,7 @@
 
+
+
+
 export interface LearningObjective {
   id: string;
   text: string;
@@ -65,6 +68,7 @@ export interface AdvancedSettings {
   learningGoals: string;
   studyPace: 'Casual' | 'Moderate' | 'Intensive';
   subjectEmphasis: string;
+  intention: 'Default' | 'Exam Prep' | 'Revision' | 'Knowledge Expansion';
 }
 
 export interface KanbanColumnData {
@@ -110,11 +114,13 @@ export interface CurriculumData {
   [key: string]: CurriculumSubject;
 }
 
-export interface FirebaseConfig {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  storageBucket: string;
-  messagingSenderId: string;
-  appId: string;
+export interface AppSettings {
+  theme: string;
+  advSettings: AdvancedSettings;
+  backgroundStyle: 'gridline' | 'griddot';
+  customAiConfig: {
+    provider: 'gemini' | 'deepseek' | 'custom';
+    customModelName: string;
+    customApiKey: string;
+  };
 }

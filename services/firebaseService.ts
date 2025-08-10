@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { StudyOutline } from '../types';
 
@@ -56,6 +56,17 @@ export const getCurrentUser = (): User | null => {
 
 export const onAuthStateChange = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, callback);
+};
+
+export const signInWithGoogle = async () => {
+  try {
+    const provider = new GoogleAuthProvider();
+    const userCredential = await signInWithPopup(auth, provider);
+    return userCredential.user;
+  } catch (error) {
+    console.error('Error signing in with Google:', error);
+    throw error;
+  }
 };
 
 // Firestore functions for study outlines

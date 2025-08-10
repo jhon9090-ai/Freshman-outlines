@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useCallback, useEffect } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { AdvancedSettings, AppStatus, CurriculumSource } from '../types';
@@ -15,9 +17,10 @@ interface MainViewProps {
   error: string | null;
   onClearError: () => void;
   defaultSettings: AdvancedSettings;
+  onUpdateDefaultSettings: (newDefaults: AdvancedSettings) => void;
 }
 
-const InputPanel: React.FC<MainViewProps> = ({ onGenerate, status, error, onClearError, defaultSettings }) => {
+const InputPanel: React.FC<MainViewProps> = ({ onGenerate, status, error, onClearError, defaultSettings, onUpdateDefaultSettings }) => {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [fileContent, setFileContent] = useState<string>('');
@@ -161,6 +164,15 @@ const InputPanel: React.FC<MainViewProps> = ({ onGenerate, status, error, onClea
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Advanced Settings">
         <div className="space-y-4 text-sm">
+           <div>
+            <label className="block mb-1 font-semibold text-slate-300">My Goal Is</label>
+            <select value={settings.intention} onChange={(e) => handleSettingsChange('intention', e.target.value as any)} className="w-full p-2 bg-slate-800 border border-slate-600 rounded-md focus:ring-[rgba(var(--primary-rgb),1)] focus:border-[rgba(var(--primary-rgb),1)]">
+              <option>Default</option>
+              <option>Exam Prep</option>
+              <option>Revision</option>
+              <option>Knowledge Expansion</option>
+            </select>
+          </div>
           <div>
             <label className="block mb-1 font-semibold text-slate-300">Outline Depth</label>
             <select value={settings.outlineDepth} onChange={(e) => handleSettingsChange('outlineDepth', e.target.value as any)} className="w-full p-2 bg-slate-800 border border-slate-600 rounded-md focus:ring-[rgba(var(--primary-rgb),1)] focus:border-[rgba(var(--primary-rgb),1)]">
@@ -184,6 +196,20 @@ const InputPanel: React.FC<MainViewProps> = ({ onGenerate, status, error, onClea
           <div>
             <label className="block mb-1 font-semibold text-slate-300">Subject Emphasis (Optional)</label>
             <input type="text" placeholder="e.g., 'Prioritize chapters 3 and 5'" value={settings.subjectEmphasis} onChange={(e) => handleSettingsChange('subjectEmphasis', e.target.value)} className="w-full p-2 bg-slate-800 border border-slate-600 rounded-md focus:ring-[rgba(var(--primary-rgb),1)] focus:border-[rgba(var(--primary-rgb),1)]"/>
+          </div>
+          <div className="flex items-center justify-between gap-3 pt-4 mt-2 border-t border-white/10">
+            <button 
+              onClick={() => setSettings(defaultSettings)} 
+              className="py-2 px-4 rounded-md text-white bg-white/10 hover:bg-white/20 text-xs font-semibold"
+            >
+              Restore Defaults
+            </button>
+            <button 
+              onClick={() => { onUpdateDefaultSettings(settings); setIsModalOpen(false); }} 
+              className="py-2 px-4 rounded-md text-white bg-[rgba(var(--primary-rgb),1)] hover:bg-[rgba(var(--primary-rgb),0.8)] text-xs font-semibold"
+            >
+              Save as Default
+            </button>
           </div>
         </div>
       </Modal>

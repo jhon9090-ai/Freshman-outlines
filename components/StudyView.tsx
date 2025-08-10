@@ -2,7 +2,7 @@
 
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { StudyOutline, MainTopic, RevisionSection, UnitOutline } from '../types';
+import { StudyOutline, MainTopic, RevisionSection, UnitOutline, AppSettings } from '../types';
 import ArrowLeftIcon from './icons/ArrowLeftIcon';
 import MainTopicCard from './StudyTopicCard';
 import RevisionCard from './RevisionCard';
@@ -17,6 +17,7 @@ interface StudyViewProps {
   outline: StudyOutline;
   onBack: () => void;
   onUpdateProgress: (objectiveId: string, isComplete: boolean) => void;
+  appSettings: AppSettings;
 }
 
 type StudyCard = { type: 'maintopic'; data: MainTopic } | { type: 'revision'; data: StudyOutline['revisionAssistant'] };
@@ -45,7 +46,7 @@ const UnitLevelNode: React.FC<{
 };
 
 
-const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress }) => {
+const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress, appSettings }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revisionScreen, setRevisionScreen] = useState<RevisionSection | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -155,7 +156,11 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   }
 
   if(showCompletionModal) {
-    return <CompletionModal outline={activeStudyData} onClose={() => { setShowCompletionModal(false); handleBackAction(); }} />
+    return <CompletionModal 
+        outline={activeStudyData} 
+        onClose={() => { setShowCompletionModal(false); handleBackAction(); }}
+        appSettings={appSettings}
+    />
   }
   
   if (revisionScreen) {
@@ -167,6 +172,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
             data={revisionData}
             onClose={() => setRevisionScreen(null)}
             outlineTitle={selectedUnit?.unitTitle || outline.title}
+            appSettings={appSettings}
         />
       )
   }

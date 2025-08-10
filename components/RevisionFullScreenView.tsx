@@ -1,8 +1,9 @@
 
 
+
 import React from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { RevisionAssistant, RevisionSection, ExamAnalysis } from '../types';
+import { RevisionAssistant, RevisionSection, ExamAnalysis, AppSettings } from '../types';
 import { generateComponentPdf } from '../services/pdfService';
 import { analyzeExamPaper } from '../services/geminiService';
 import XIcon from './icons/XIcon';
@@ -20,6 +21,7 @@ interface RevisionFullScreenViewProps {
     data: RevisionAssistant;
     onClose: () => void;
     outlineTitle: string;
+    appSettings: AppSettings;
 }
 
 const Section: React.FC<{title: string; children: React.ReactNode; className?: string}> = ({title, children, className}) => (
@@ -29,7 +31,7 @@ const Section: React.FC<{title: string; children: React.ReactNode; className?: s
     </div>
 )
 
-const RevisionFullScreenView: React.FC<RevisionFullScreenViewProps> = ({ view, data, onClose, outlineTitle }) => {
+const RevisionFullScreenView: React.FC<RevisionFullScreenViewProps> = ({ view, data, onClose, outlineTitle, appSettings }) => {
     const [isDownloading, setIsDownloading] = React.useState(false);
     const contentId = `revision-content-${view}`;
 
@@ -100,8 +102,9 @@ const RevisionFullScreenView: React.FC<RevisionFullScreenViewProps> = ({ view, d
             setIsAnalyzing(false);
             return;
         }
+
         try {
-            const result = await analyzeExamPaper(content, outlineTitle);
+            const result = await analyzeExamPaper(content, outlineTitle, appSettings);
             setAnalysis(result);
         } catch(err) {
             setAnalysisError(err instanceof Error ? err.message : 'Failed to analyze file.');

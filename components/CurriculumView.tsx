@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { AdvancedSettings, CurriculumTheme, CurriculumUnit, StudyOutline, CurriculumSource } from '../types';
@@ -11,23 +14,23 @@ import StarIcon from './icons/StarIcon';
 import ArrowLeftIcon from './icons/ArrowLeftIcon';
 import ChevronRightIcon from './icons/ChevronRightIcon';
 
+// New Icons
+import SigmaIcon from './icons/SigmaIcon';
+import BrainIcon from './icons/BrainIcon';
+import MagnetIcon from './icons/MagnetIcon';
+import AtomIcon from './icons/AtomIcon';
+import BooksIcon from './icons/BooksIcon';
+import MessageCircleIcon from './icons/MessageCircleIcon';
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
-// Icon Components
-const DnaIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3.46a9 9 0 0 1 0 17.08"/><path d="M10 20.54a9 9 0 0 1 0-17.08"/><path d="M15 4l-1.4 1.4"/><path d="M9 4l1.4 1.4"/><path d="M15 20l-1.4-1.4"/><path d="M9 20l1.4 1.4"/><path d="M10 8H6"/><path d="M14 8h4"/><path d="M10 16H6"/><path d="M14 16h4"/><path d="M12 5.5s-1-1-2-1-2 1-2 1"/><path d="M12 18.5s-1 1-2 1-2-1-2 1"/></svg>);
-const PiIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4h14M5 20h14"/><path d="M12 4v16"/></svg>);
-const AtomIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><path d="M20.2 20.2c2.04-2.03.02-5.91-4.04-9.94-4.06-4.03-7.9-6.06-9.94-4.04-2.04 2.03-.02 5.91 4.04 9.94 4.06 4.03 7.9 6.06 9.94 4.04Z"/><path d="M3.8 3.8c-2.04 2.03-.02 5.91 4.04 9.94 4.06 4.03 7.9 6.06 9.94 4.04 2.04-2.03.02-5.91-4.04-9.94-4.06-4.03-7.9-6.06-9.94-4.04Z"/></svg>);
-const BeakerIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3h8"/><path d="M7 3v15a5 5 0 0 0 5 5 5 5 0 0 0 5-5V3"/><path d="M8 9h8"/></svg>);
-const GraduationCapIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.838l8.57 4.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12v5a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-5"/></svg>);
-const SpeechBubbleIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>);
-
 const subjectIcons: { [key: string]: React.FC<{className?: string}> } = {
-  'Biology': DnaIcon,
-  'Mathematics': PiIcon,
-  'Physics': AtomIcon,
-  'Chemistry': BeakerIcon,
-  'SAT': GraduationCapIcon,
-  'English': SpeechBubbleIcon,
+  'Mathematics': SigmaIcon,
+  'Biology': BrainIcon,
+  'Physics': MagnetIcon,
+  'Chemistry': AtomIcon,
+  'SAT': BooksIcon,
+  'English': MessageCircleIcon,
 };
 
 interface GenerationOptionsProps {
@@ -356,7 +359,7 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
               {SUBJECT_ORDER.map(key => {
                   const Icon = subjectIcons[key];
                   return (
-                      <button key={key} onClick={() => setSelectedSubjectKey(key)} className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 rounded-xl hover:bg-white/10 border-2 border-dashed border-slate-700 hover:border-[rgba(var(--primary-rgb),0.5)] transition-all aspect-square active:scale-95 hover:scale-105">
+                      <button key={key} onClick={() => setSelectedSubjectKey(key)} className="relative flex flex-col items-center justify-center gap-2 p-3 bg-white/5 rounded-xl hover:bg-white/10 border-2 border-dashed border-slate-700 hover:border-[rgba(var(--primary-rgb),0.5)] transition-all aspect-square active:scale-95 hover:scale-105 hover:z-20">
                           {Icon && <Icon className="w-10 h-10 text-[rgba(var(--primary-rgb),0.8)]"/>}
                           <span className="font-semibold text-sm text-center text-slate-200">{key}</span>
                       </button>

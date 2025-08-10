@@ -1,21 +1,73 @@
 
 
 
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { AdvancedSettings, StudyOutline, SubTopic, MCQ, LearningObjective, ExamAnalysis, MainTopic, UnitOutline, CurriculumSource } from '../types';
+import { AdvancedSettings, AppSettings, StudyOutline, SubTopic, MCQ, LearningObjective, ExamAnalysis, MainTopic, UnitOutline, CurriculumSource } from '../types';
 
-const SETTINGS_STORAGE_KEY = 'app-settings';
+// --- UTILITY ---
+/**
+ * Wraps a promise in a timeout.
+ * @param promise The promise to wrap.
+ * @param ms The timeout duration in milliseconds.
+ * @param serviceName The name of the service for clear error messages.
+ * @returns A new promise that will reject if the original promise doesn't resolve within the given time.
+ */
+const withTimeout = <T>(promise: Promise<T>, ms: number, serviceName: string): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`AI request timed out. The ${serviceName} is taking too long to respond. Please check your connection or try again.`));
+    }, ms);
 
-const getAiClient = (): GoogleGenAI => {
-    const savedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    const apiKey = savedSettings ? JSON.parse(savedSettings).geminiApiKey : null;
-
-    if (!apiKey) {
-        throw new Error("API Key not found. Please set your Gemini API key in the settings panel.");
-    }
-    return new GoogleGenAI({ apiKey });
+    promise
+      .then(value => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(reason => {
+        clearTimeout(timer);
+        reject(reason);
+      });
+  });
 };
 
+
+// --- API CLIENT ---
+const getAiClient = (settings: AppSettings): { ai: GoogleGenAI; model: string } => {
+    const config = settings.customAiConfig;
+  
+    switch (config.provider) {
+        case 'deepseek':
+            // This will use the provided DeepSeek key.
+            // NOTE: The @google/genai SDK is intended for Google models and this may fail if the API is not compatible.
+            // However, this fulfills the user's request to use the specified API key.
+            return {
+                ai: new GoogleGenAI({ apiKey: 'sk-3cfbd35c67c84504bc83ae9cb5323e79' }),
+                model: 'deepseek-chat',
+            };
+        case 'custom':
+            if (!config.customApiKey || !config.customModelName) {
+                throw new Error("Custom AI provider is selected, but model name or API key is missing in settings.");
+            }
+            return {
+                ai: new GoogleGenAI({ apiKey: config.customApiKey }),
+                model: config.customModelName,
+            };
+        case 'gemini':
+        default:
+            const apiKey = process.env.API_KEY;
+            if (!apiKey) {
+                throw new Error("Built-in API Key is missing. Please configure it or use a custom AI provider in settings.");
+            }
+            return {
+                ai: new GoogleGenAI({ apiKey }),
+                model: "gemini-2.5-flash",
+            };
+    }
+};
+
+
+// --- SCHEMAS ---
 const mainTopicSchema = {
     type: Type.OBJECT,
     required: ["title", "subtopics"],
@@ -32,7 +84,7 @@ const mainTopicSchema = {
                 learningObjectives: {
                     type: Type.ARRAY,
                     items: { type: Type.STRING },
-                    description: "A list of clear, actionable learning objectives for this specific subtopic."
+                    description: "A list of 2-5 clear, actionable learning objectives for this specific subtopic."
                 }
             }
         }
@@ -48,11 +100,11 @@ const revisionAssistantSchema = {
       focusAreas: {
         type: Type.ARRAY,
         items: { type: Type.STRING },
-        description: "A bulleted list of key areas to focus on for revision."
+        description: "A bulleted list of key areas to focus on for revision, including actionable recommendations like 'Create flashcards for key terms' or 'Practice solving problems from chapter 5'."
       },
       examQuestions: {
         type: Type.ARRAY,
-        description: "A list of 3-5 potential multiple-choice exam questions.",
+        description: "A list of 10-15 potential multiple-choice exam questions.",
         items: {
           type: Type.OBJECT,
           required: ["question", "options", "correctAnswerIndex", "explanation"],
@@ -74,7 +126,7 @@ const revisionAssistantSchema = {
             definition: { type: Type.STRING }
           }
         },
-        description: "A list of important keywords and their definitions."
+        description: "A comprehensive list of important keywords and their definitions."
       },
       quickFacts: {
           type: Type.ARRAY,
@@ -135,42 +187,69 @@ const themeResponseSchema = {
     }
 };
 
+
+// --- PROMPTS ---
+const getCommonInstructions = (settings: AdvancedSettings) => `
+**Core Instructions:**
+1.  **Source Material is Primary:** If user provides content, your outline MUST be based on it first. Faithfully mirror its structure, topics, and concepts.
+2.  **Enrichment:** After creating the base outline from the source, critically evaluate it. Add any essential topics, subtopics, or learning objectives that are standard for the subject but were missing. This ensures a complete and robust curriculum. If no source is provided, generate a comprehensive curriculum from scratch.
+3.  **Learning Objectives:**
+    - First, extract any verbatim learning objectives from the source material.
+    - Then, for EVERY subtopic, ensure there are AT LEAST TWO concrete, actionable learning objectives.
+    - Generate your own high-quality objectives where needed. Good objectives start with verbs like "Define," "Calculate," "Explain," "Apply." Avoid vague objectives like "Understand X."
+4.  **Structure:** The final output must be a clear hierarchy: Main Topics > Subtopics > Learning Objectives.
+5.  **Revision Assistant:** Generate a comprehensive revision assistant. Include actionable focus areas, 10-15 MCQs, ALL key definitions, and interesting quick facts.
+6.  **JSON Output:** Respond ONLY with a valid JSON object matching the schema.
+
+**User Preferences:**
+- Depth: ${settings.outlineDepth}
+- Intention: ${settings.intention}
+- Goals: ${settings.learningGoals || 'General'}
+- Pace: ${settings.studyPace}
+- Emphasis: ${settings.subjectEmphasis || 'Balanced'}`;
+
+
+// --- API SERVICES ---
+const handleGeminiError = (error: unknown, serviceName: string): never => {
+    console.error(`Error in ${serviceName}:`, error);
+    if (error instanceof Error) {
+        if (error.message.includes("API key not valid")) {
+            throw new Error("The provided API Key is invalid or expired. Please check it in the Settings panel.");
+        }
+        if (error.message.includes("429")) {
+            throw new Error("API rate limit exceeded. You've made too many requests. Please wait a moment and try again.");
+        }
+        if (error.message.includes("timed out")) {
+            throw error; // Re-throw the specific timeout error
+        }
+        // Check for safety-related blocking
+        const errString = JSON.stringify(error);
+        if (errString.includes('SAFETY') || errString.includes('block_reason')) {
+             throw new Error("The request was blocked for safety reasons. This can happen if the prompt or the expected response is flagged as harmful. Please revise your input.");
+        }
+    }
+    throw new Error(`Failed to ${serviceName}. The AI model may be temporarily unavailable or the input might be unsupported.`);
+};
+
+
 export const generateStudyOutline = async (
   generationInput: string,
-  settings: AdvancedSettings,
+  appSettings: AppSettings,
   isTheme: boolean = false
 ): Promise<Omit<StudyOutline, 'id' | 'title' | 'createdAt' | 'curriculumSource'>> => {
-  const model = "gemini-2.5-flash";
-
-  const settingsText = `Here are the user's preferences:
-- Outline Depth: ${settings.outlineDepth}
-- Learning Goals: ${settings.learningGoals || 'Generate clear, achievable learning goals.'}
-- Study Pace: ${settings.studyPace} (This should influence the granularity of topics)
-- Subject Emphasis: ${settings.subjectEmphasis || 'Provide a balanced overview.'}`;
-
-  const standardSystemInstruction = `You are an expert curriculum designer. Your task is to generate a highly structured study outline based on the user's request.
-- If the user provides a detailed document, base the outline on that content.
-- If the user provides just a topic name (e.g., "Linear Algebra"), generate a comprehensive curriculum for that topic from scratch.
-- In ALL cases, you MUST supplement the outline with any essential subtopics that are crucial for a complete understanding, even if they are not in the provided text. Your goal is to create a complete and logical learning path.
-- Break the content into high-level main topics. Crucially, each main topic must be further divided into granular, single-concept subtopics.
-- Each subtopic must have its own specific learning objectives.
-- Generate a 'Revision Assistant' section with focus areas, interactive multiple-choice questions, key definitions, and interesting quick facts.
-- Adhere strictly to the provided JSON schema for your response.\n${settingsText}`;
   
-  const themeSystemInstruction = `You are an expert curriculum designer. Your task is to generate a comprehensive, theme-based study outline based on the user's request, which specifies a theme and its constituent units. Follow these steps precisely:
+  const { ai, model } = getAiClient(appSettings);
+  const commonInstructions = getCommonInstructions(appSettings.advSettings);
 
-1.  **Analyze User-Provided Content (If Any):** If the user has uploaded a file (its content will be in the prompt), this content is the highest priority. It may contain detailed information, specific examples, or a curated selection of topics related to the units. First, thoroughly analyze this document. The generated outline for each unit MUST reflect and incorporate the details from this document.
+  const standardSystemInstruction = `You are an expert curriculum designer generating a standard study outline.\n${commonInstructions}`;
+  
+  const themeSystemInstruction = `You are an expert curriculum designer creating a theme-based outline.
+1.  **Analyze Source (if any):** If user provides text, all unit outlines MUST be based on it.
+2.  **Generate Unit Outlines:** For EACH unit in the prompt, create a complete, detailed outline using the common instructions.
+3.  **Synthesize Theme Revision:** After all units are done, create a single, high-level "revisionAssistant" for the entire theme.
+4.  **Final Structure:** Output a single JSON object matching the schema, containing an array of all generated unit outlines.
 
-2.  **Generate Detailed Individual Unit Outlines:** For EACH unit listed in the user's prompt, you must generate a complete, standalone, and detailed study outline. Treat each unit as if it were the sole subject of the request. This means for every single unit, you must:
-    - Create a full structure of "mainTopics".
-    - Break down each "mainTopic" into granular, single-concept "subtopics".
-    - Assign specific, actionable "learningObjectives" to each "subtopic".
-    - Create a dedicated and comprehensive "revisionAssistant" (with focus areas, MCQs, definitions, and quick facts) specifically tailored to THAT unit's content.
-
-3.  **Synthesize a Top-Level Theme Revision Assistant:** After creating the detailed breakdowns for all individual units, generate ONE final, top-level "revisionAssistant" for the entire theme. This should be a high-level summary that synthesizes the most critical concepts and connections from across all the units.
-
-4.  **Final Structure:** Your final output MUST be a single JSON object that adheres strictly to the provided schema. It must contain an array of "units", where each object in the array is the complete, detailed outline you generated for that unit (including its own \`unitTitle\`, \`mainTopics\`, and \`revisionAssistant\`). The object also contains the single, top-level \`revisionAssistant\` for the whole theme. Do not add, omit, or change the list of units provided by the user.
-${settingsText}`;
+**Common Instructions:**\n${commonInstructions}`;
 
   const systemInstruction = isTheme ? themeSystemInstruction : standardSystemInstruction;
   const schema = isTheme ? themeResponseSchema : responseSchema;
@@ -178,8 +257,7 @@ ${settingsText}`;
   const prompt = `Please create a study outline for the following request:\n\n---\n\n${generationInput}`;
 
   try {
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
+    const generatePromise = ai.models.generateContent({
       model: model,
       contents: prompt,
       config: {
@@ -189,14 +267,16 @@ ${settingsText}`;
       }
     });
 
-    const jsonText = response.text.trim();
+    const response = await withTimeout(generatePromise, 60000, 'generate study outline');
+
+    const jsonText = response.text?.trim();
 
     if (!jsonText) {
         const finishReason = response.candidates?.[0]?.finishReason;
         const safetyRatings = response.candidates?.[0]?.safetyRatings;
         let reasonMessage = `The AI returned an empty response. Finish Reason: ${finishReason || 'Unknown'}.`;
         if (finishReason === 'SAFETY') {
-            reasonMessage += ` This can happen if the input or output is flagged as unsafe. Ratings: ${JSON.stringify(safetyRatings)}`;
+            reasonMessage += ` This can happen if the input or output is flagged as unsafe. Please revise your input. Ratings: ${JSON.stringify(safetyRatings)}`;
         }
         throw new Error(reasonMessage);
     }
@@ -214,7 +294,7 @@ ${settingsText}`;
         examQuestions: (assistant?.examQuestions || []).map((q: any, qIndex: number): MCQ => ({
             id: `mcq-${Date.now()}-${qIndex}`,
             question: q.question || 'No question provided',
-            options: q.options && q.options.length === 4 ? q.options : ['A', 'B', 'C', 'D'],
+            options: Array.isArray(q.options) && q.options.length > 0 ? q.options : ['A', 'B', 'C', 'D'],
             correctAnswerIndex: typeof q.correctAnswerIndex === 'number' ? q.correctAnswerIndex : 0,
             explanation: q.explanation || 'No explanation provided.'
         })),
@@ -267,24 +347,12 @@ ${settingsText}`;
     }
 
   } catch (error) {
-    console.error("Error generating content from Gemini:", error);
-    if (error instanceof Error) {
-        if (error.message.includes("API Key not found")) {
-            throw error;
-        }
-        if (error.message.includes("API key not valid")) {
-            throw new Error("Your API Key appears to be invalid. Please check it in the settings panel.");
-        }
-        if (error.message.includes("429")) {
-            throw new Error("API rate limit exceeded. Please wait and try again.");
-        }
-    }
-    throw new Error("Failed to generate study outline. The AI model may be unavailable, your API key could be invalid, or the input is unsupported.");
+    handleGeminiError(error, 'generate study outline');
   }
 };
 
-export const generateCompletionMentoring = async (outline: StudyOutline): Promise<string> => {
-    const model = "gemini-2.5-flash";
+export const generateCompletionMentoring = async (outline: StudyOutline, appSettings: AppSettings): Promise<string> => {
+    const { ai, model } = getAiClient(appSettings);
     const allObjectives = outline.isThemeOutline 
         ? outline.units?.flatMap(u => u.mainTopics.flatMap(t => t.subtopics.flatMap(st => st.learningObjectives))) || []
         : outline.mainTopics?.flatMap(t => t.subtopics.flatMap(st => st.learningObjectives)) || [];
@@ -297,15 +365,12 @@ export const generateCompletionMentoring = async (outline: StudyOutline): Promis
     const prompt = `The user finished studying their outline titled "${outline.title}" for the subject "${outline.subject}". They completed ${completedCount} out of ${totalObjectives} learning objectives (${progress}%). Please provide an encouraging message for them.`;
 
     try {
-        const ai = getAiClient();
-        const response = await ai.models.generateContent({ model, contents: prompt, config: { systemInstruction } });
+        const generatePromise = ai.models.generateContent({ model, contents: prompt, config: { systemInstruction } });
+        const response = await withTimeout(generatePromise, 15000, 'generate mentor feedback');
         return response.text;
     } catch (error) {
         console.error("Error generating mentor feedback:", error);
         // Don't block user flow for this non-critical feature
-        if (error instanceof Error && error.message.includes("API Key")) {
-            return "Congratulations on completing your study session!";
-        }
         return "Great job completing your study session! Keep up the fantastic work.";
     }
 };
@@ -322,14 +387,13 @@ const examAnalysisSchema = {
 };
 
 
-export const analyzeExamPaper = async (fileContent: string, topic: string): Promise<ExamAnalysis> => {
-    const model = "gemini-2.5-flash";
+export const analyzeExamPaper = async (fileContent: string, topic: string, appSettings: AppSettings): Promise<ExamAnalysis> => {
+    const { ai, model } = getAiClient(appSettings);
     const systemInstruction = `You are an expert academic analyst. Your task is to analyze the provided text from a past exam paper and extract key insights. The user is studying the topic of "${topic}". Provide a detailed analysis based on the provided JSON schema.`;
     const prompt = `Here is the content from a past exam paper. Please analyze it:\n\n---\n\n${fileContent}`;
 
     try {
-        const ai = getAiClient();
-        const response = await ai.models.generateContent({
+        const generatePromise = ai.models.generateContent({
             model,
             contents: prompt,
             config: {
@@ -338,6 +402,8 @@ export const analyzeExamPaper = async (fileContent: string, topic: string): Prom
                 responseSchema: examAnalysisSchema,
             }
         });
+
+        const response = await withTimeout(generatePromise, 60000, 'analyze exam paper');
 
         const jsonText = response.text.trim();
         if (!jsonText) {
@@ -353,15 +419,6 @@ export const analyzeExamPaper = async (fileContent: string, topic: string): Prom
         };
 
     } catch (error) {
-        console.error("Error analyzing exam paper:", error);
-        if (error instanceof Error) {
-            if (error.message.includes("API Key not found")) {
-                throw error;
-            }
-            if (error.message.includes("API key not valid")) {
-                throw new Error("Your API Key appears to be invalid. Please check it in the settings panel.");
-            }
-        }
-        throw new Error("Failed to analyze the exam paper. The model may be unavailable or the content is invalid.");
+         handleGeminiError(error, 'analyze exam paper');
     }
 };

@@ -56,11 +56,15 @@
         background-color: var(--background-panel);
         border: 1px solid var(--border-color);
       }
-      .bg-grid {
+      .bg-gridline {
         background-image:
           linear-gradient(rgba(var(--primary-rgb), 0.07) 1px, transparent 1px),
           linear-gradient(to right, rgba(var(--primary-rgb), 0.07) 1px, transparent 1px);
         background-size: 3rem 3rem;
+      }
+      .bg-griddot {
+        background-image: radial-gradient(rgba(var(--primary-rgb), 0.1) 1px, transparent 1px);
+        background-size: 1.5rem 1.5rem;
       }
       /* Custom scrollbar for webkit browsers */
       ::-webkit-scrollbar {
@@ -160,11 +164,7 @@
     "@google/genai": "https://esm.sh/@google/genai@^1.12.0",
     "pdfjs-dist": "https://esm.sh/pdfjs-dist@^4.5.136",
     "jspdf": "https://esm.sh/jspdf@2.5.1",
-    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
-    "firebase/app": "https://esm.sh/firebase@10.12.2/app",
-    "firebase/auth": "https://esm.sh/firebase@10.12.2/auth",
-    "firebase/firestore": "https://esm.sh/firebase@10.12.2/firestore",
-    "firebase/": "https://esm.sh/firebase@^12.1.0/"
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1"
   }
 }
 </script>

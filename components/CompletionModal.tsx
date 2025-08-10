@@ -2,7 +2,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { StudyOutline } from '../types';
+import { StudyOutline, AppSettings } from '../types';
 import { generateCompletionMentoring } from '../services/geminiService';
 import { generateProgressReportPdf } from '../services/pdfService';
 import Spinner from './ui/Spinner';
@@ -13,16 +13,18 @@ import CheckCircleIcon from './icons/CheckCircleIcon';
 interface CompletionModalProps {
     outline: StudyOutline;
     onClose: () => void;
+    appSettings: AppSettings;
 }
 
-const CompletionModal: React.FC<CompletionModalProps> = ({ outline, onClose }) => {
+const CompletionModal: React.FC<CompletionModalProps> = ({ outline, onClose, appSettings }) => {
     const [mentorFeedback, setMentorFeedback] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchFeedback = async () => {
+            setIsLoading(true);
             try {
-                const feedback = await generateCompletionMentoring(outline);
+                const feedback = await generateCompletionMentoring(outline, appSettings);
                 setMentorFeedback(feedback);
             } catch (error) {
                 console.error("Failed to get mentor feedback", error);
@@ -32,7 +34,7 @@ const CompletionModal: React.FC<CompletionModalProps> = ({ outline, onClose }) =
             }
         };
         fetchFeedback();
-    }, [outline]);
+    }, [outline, appSettings]);
     
     const allObjectives = outline.isThemeOutline
       ? outline.units?.flatMap(u => u.mainTopics.flatMap(t => t.subtopics.flatMap(st => st.learningObjectives))) || []
