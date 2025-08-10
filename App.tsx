@@ -1,19 +1,15 @@
 
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User } from 'firebase/auth';
 import { StudyOutline, AppStatus, AppView, AdvancedSettings, CurriculumSource } from './types';
 import { generateStudyOutline } from './services/geminiService';
-import { syncOutlinesWithFirestore, getCurrentUser } from './services/firebaseService';
 import InputPanel from './components/InputPanel';
 import StudyView from './components/StudyView';
 import Spinner from './components/ui/Spinner';
 import CurriculumView from './components/CurriculumView';
 import Dashboard from './components/Dashboard';
 import SettingsPanel from './components/SettingsPanel';
-import AuthPanel from './components/AuthPanel';
 import SettingsIcon from './components/icons/SettingsIcon';
-import UserIcon from './components/icons/UserIcon';
 
 const STORAGE_KEY = 'studyOutlines';
 const SETTINGS_STORAGE_KEY = 'app-settings';
@@ -58,10 +54,6 @@ export default function App(): React.ReactNode {
   const [advSettings, setAdvSettings] = useState<AdvancedSettings>(defaultSettings);
   const [apiKey, setApiKey] = useState('');
 
-  // Auth State
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   // Load data from localStorage on initial mount
   useEffect(() => {
@@ -76,10 +68,6 @@ export default function App(): React.ReactNode {
         if (advancedSettings) setAdvSettings(advancedSettings);
         if (apiKey) setApiKey(apiKey);
       }
-
-      // Check if user is already logged in
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
     } catch (e) {
       console.error("Failed to load data from storage", e);
       setOutlines([]);
@@ -94,44 +82,9 @@ export default function App(): React.ReactNode {
     localStorage.setItem(SETTINGS_STORAGE_KEY, settingsToSave);
   }, [theme, advSettings, apiKey]);
 
-  // Sync outlines with Firestore when user changes
-  useEffect(() => {
-    const syncOutlines = async () => {
-      if (user) {
-        try {
-          setIsSyncing(true);
-          const syncedOutlines = await syncOutlinesWithFirestore(user.uid, outlines);
-          setOutlines(syncedOutlines);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(syncedOutlines));
-        } catch (err) {
-          console.error('Failed to sync outlines with Firestore:', err);
-          setError('Failed to sync with cloud. Your data is saved locally.');
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    };
-
-    if (user) {
-      syncOutlines();
-    }
-  }, [user]);
-
   const saveOutlines = (updatedOutlines: StudyOutline[]) => {
-    // Add updatedAt timestamp to each outline
-    const outlinesWithTimestamp = updatedOutlines.map(outline => ({
-      ...outline,
-      updatedAt: new Date().toISOString()
-    }));
-    
-    setOutlines(outlinesWithTimestamp);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(outlinesWithTimestamp));
-    
-    // If user is logged in, sync with Firestore
-    if (user) {
-      syncOutlinesWithFirestore(user.uid, outlinesWithTimestamp)
-        .catch(err => console.error('Failed to sync outlines with Firestore:', err));
-    }
+    setOutlines(updatedOutlines);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedOutlines));
   };
 
   useEffect(() => {
@@ -252,25 +205,13 @@ export default function App(): React.ReactNode {
                     <h1 className="font-heading text-3xl text-white">
                       Intelligent Outlines
                     </h1>
-                    <div className="flex items-center space-x-2">
-                        {isSyncing && (
-                            <span className="text-xs text-slate-400 animate-pulse">Syncing...</span>
-                        )}
-                        <button 
-                            onClick={() => setIsAuthOpen(true)}
-                            className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/20 transition-all duration-200 hover:scale-110 active:scale-100"
-                            title={user ? 'Account' : 'Login'}
-                        >
-                            <UserIcon className="w-6 h-6" isLoggedIn={!!user} />
-                        </button>
-                        <button 
-                            onClick={() => setIsSettingsOpen(true)}
-                            className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/20 transition-all duration-200 hover:scale-110 active:scale-100"
-                            title="Settings"
-                        >
-                            <SettingsIcon className="w-6 h-6" />
-                        </button>
-                    </div>
+                     <button 
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/20 transition-all duration-200 hover:scale-110 active:scale-100"
+                        title="Settings"
+                    >
+                        <SettingsIcon className="w-6 h-6" />
+                    </button>
                 </div>
                 
                 <div className="flex justify-center border-b border-white/10 mb-6">
@@ -327,11 +268,6 @@ export default function App(): React.ReactNode {
   return (
     <div className="h-screen w-screen text-slate-200 font-sans antialiased bg-grid overflow-hidden">
         {renderContent()}
-        <AuthPanel
-            isOpen={isAuthOpen}
-            onClose={() => setIsAuthOpen(false)}
-            onAuthStateChanged={setUser}
-        />
         <SettingsPanel 
             isOpen={isSettingsOpen}
             onClose={() => setIsSettingsOpen(false)}

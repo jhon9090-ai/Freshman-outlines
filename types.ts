@@ -35,7 +35,6 @@ export interface StudyOutline {
   title: string; // Will be Theme title for theme outlines
   subject: string;
   createdAt: string;
-  updatedAt?: string; // Used for cloud syncing to determine which version is newer
   
   isThemeOutline?: boolean;
   mainTopics?: MainTopic[]; // For standard outlines

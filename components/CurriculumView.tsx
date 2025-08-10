@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { AdvancedSettings, CurriculumTheme, CurriculumUnit, StudyOutline, CurriculumSource } from '../types';
@@ -12,12 +9,13 @@ import Spinner from './ui/Spinner';
 import UploadIcon from './icons/UploadIcon';
 import StarIcon from './icons/StarIcon';
 import ArrowLeftIcon from './icons/ArrowLeftIcon';
+import ChevronRightIcon from './icons/ChevronRightIcon';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
 // Icon Components
 const DnaIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3.46a9 9 0 0 1 0 17.08"/><path d="M10 20.54a9 9 0 0 1 0-17.08"/><path d="M15 4l-1.4 1.4"/><path d="M9 4l1.4 1.4"/><path d="M15 20l-1.4-1.4"/><path d="M9 20l1.4 1.4"/><path d="M10 8H6"/><path d="M14 8h4"/><path d="M10 16H6"/><path d="M14 16h4"/><path d="M12 5.5s-1-1-2-1-2 1-2 1"/><path d="M12 18.5s-1 1-2 1-2-1-2 1"/></svg>);
-const PiIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 6h14"/><path d="M8 6v14"/><path d="M16 6v10c0 2-1 4-3 4"/></svg>);
+const PiIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4h14M5 20h14"/><path d="M12 4v16"/></svg>);
 const AtomIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><path d="M20.2 20.2c2.04-2.03.02-5.91-4.04-9.94-4.06-4.03-7.9-6.06-9.94-4.04-2.04 2.03-.02 5.91 4.04 9.94 4.06 4.03 7.9 6.06 9.94 4.04Z"/><path d="M3.8 3.8c-2.04 2.03-.02 5.91 4.04 9.94 4.06 4.03 7.9 6.06 9.94 4.04 2.04-2.03.02-5.91-4.04-9.94-4.06-4.03-7.9-6.06-9.94-4.04Z"/></svg>);
 const BeakerIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3h8"/><path d="M7 3v15a5 5 0 0 0 5 5 5 5 0 0 0 5-5V3"/><path d="M8 9h8"/></svg>);
 const GraduationCapIcon: React.FC<{ className?: string }> = ({ className }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.838l8.57 4.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12v5a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-5"/></svg>);
@@ -92,6 +90,7 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
   const [rememberChoice, setRememberChoice] = useState(false);
   const [isFileReading, setIsFileReading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedTheme, setSelectedTheme] = useState<CurriculumTheme | null>(null);
 
   const outlinesBySource = useMemo(() => {
     const map = new Map<string, StudyOutline>();
@@ -235,114 +234,143 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
 
   const subject = selectedSubjectKey ? curriculumData[selectedSubjectKey] : null;
 
-  return (
-    <>
-      {subject ? (
-        <div key="subject-details" className="flex flex-col h-full w-full animate-fadeInUp">
-            <header className="flex-shrink-0 mb-4">
-            <button onClick={() => { setExistingOutlineTarget(null); setSelectedSubjectKey(null); }} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors mb-4">
-                <ArrowLeftIcon className="w-5 h-5"/> Back to Subjects
-            </button>
-            <h1 className="font-heading text-2xl text-white">{subject.title}</h1>
-            <p className="text-slate-400 mt-1">Select a theme or a specific unit to generate a study outline.</p>
-            </header>
-            
-            <main className="flex-1 overflow-y-auto pr-2 space-y-4">
-                {subject.themes.map(theme => {
-                    const themeSource: CurriculumSource = { subjectKey: selectedSubjectKey!, theme: theme.theme, unit: ''};
-                    const themeKey = `theme-${selectedSubjectKey}-${theme.theme}`;
-                    const themeContext = buildContext('theme', theme, selectedSubjectKey!);
-                    return (
-                        <div key={theme.theme} className="glass-panel rounded-lg border border-slate-700/50 open:bg-[rgba(var(--primary-rgb),0.05)] transition-colors duration-300">
-                            <details>
-                                <summary className="p-4 font-semibold text-xl text-slate-100 cursor-pointer list-none flex justify-between items-center">
-                                    <div className="flex-1 flex items-center">
-                                        {theme.theme}
-                                        {theme.class && <span className="text-sm font-normal text-slate-400 ml-2">({theme.class})</span>}
-                                    </div>
-                                    <svg className="w-6 h-6 transition-transform transform-gpu duration-300 ease-out details-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                                    <style>{`.details-arrow { transform: rotate(0); } details[open] .details-arrow { transform: rotate(180deg); }`}</style>
-                                </summary>
-                                <div className="accordion-content">
-                                    <div className="accordion-content-inner border-t border-slate-700">
-                                        <div className="p-3 space-y-3">
-                                            <ul className="space-y-1">
-                                                {theme.units.map(unit => {
-                                                    const source: CurriculumSource = { subjectKey: selectedSubjectKey!, theme: theme.theme, unit: unit.unit };
-                                                    const hasOutline = !!findExistingOutline(source);
-                                                    const unitKey = `unit-${selectedSubjectKey}-${theme.theme}-${unit.unit}`;
-                                                    const unitContext = buildContext('unit', unit, selectedSubjectKey!, theme);
-                                                    return (
-                                                        <li key={unit.unit + unit.grade}>
-                                                            <button onClick={() => toggleGenerationOptions(unitKey, unitContext)} className="w-full text-left p-3 rounded-md hover:bg-[rgba(var(--primary-rgb),0.15)] transition-colors flex justify-between items-center">
-                                                                <div className="flex items-center">
-                                                                    {hasOutline && <span className="w-2 h-2 bg-green-400 rounded-full mr-3 flex-shrink-0" title="Outline exists"></span>}
-                                                                    <span className="text-slate-200">{unit.unit}</span>
-                                                                </div>
-                                                                {unit.grade && <span className="ml-2 text-xs text-slate-400 bg-slate-700 px-1.5 py-0.5 rounded">{unit.grade}</span>}
-                                                            </button>
-                                                            <div className={`accordion-content ${activeGenerationKey === unitKey ? 'expanded' : ''}`}>
-                                                                <div className="accordion-content-inner">
-                                                                    <GenerationOptions 
-                                                                        onUploadClick={() => fileInputRef.current?.click()}
-                                                                        onAiClick={handleGenerateWithAi}
-                                                                        isReadingFile={isFileReading}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                    )
-                                                })}
-                                            </ul>
+  const handleBackToSubjects = () => {
+    setSelectedSubjectKey(null);
+    setSelectedTheme(null);
+    setExistingOutlineTarget(null);
+    setActiveGenerationKey(null);
+  };
 
-                                             <div className="pt-4 mt-2 border-t border-slate-700/50">
-                                                <button onClick={() => toggleGenerationOptions(themeKey, themeContext)} className="w-full text-left p-3 rounded-lg bg-[rgba(var(--primary-rgb),0.15)] hover:bg-[rgba(var(--primary-rgb),0.25)] transition-colors flex justify-between items-center border border-[rgba(var(--primary-rgb),0.2)] active:scale-[0.98]">
-                                                    <div className="flex items-center">
-                                                        {findExistingOutline(themeSource) && <span className="w-2 h-2 bg-green-400 rounded-full mr-3 flex-shrink-0" title="Outline exists"></span>}
-                                                        <div className="flex flex-col">
-                                                            <span className="text-slate-100 font-semibold">Create Outline for "{theme.theme}" Theme</span>
-                                                            <span className="text-xs text-slate-400">Generates a single comprehensive outline for all units.</span>
-                                                        </div>
-                                                    </div>
-                                                    <StarIcon className="w-5 h-5 text-[rgba(var(--primary-rgb),1)] flex-shrink-0"/>
-                                                </button>
-                                                <div className={`accordion-content ${activeGenerationKey === themeKey ? 'expanded' : ''}`}>
-                                                    <div className="accordion-content-inner">
-                                                        <GenerationOptions 
-                                                            onUploadClick={() => fileInputRef.current?.click()}
-                                                            onAiClick={handleGenerateWithAi}
-                                                            isReadingFile={isFileReading}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </details>
-                        </div>
-                    )
-                })}
-            </main>
-        </div>
-      ) : (
-        <div key="subject-grid" className="animate-fadeInUp">
-          <p className="text-lg text-center text-slate-300 mb-6">Select a subject to browse its curriculum.</p>
-          <div className="max-w-4xl mx-auto">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-                {SUBJECT_ORDER.map(key => {
-                    const Icon = subjectIcons[key];
-                    return (
-                        <button key={key} onClick={() => setSelectedSubjectKey(key)} className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 rounded-xl hover:bg-white/10 border-2 border-dashed border-slate-700 hover:border-[rgba(var(--primary-rgb),0.5)] transition-all aspect-square active:scale-95 hover:scale-105">
-                            {Icon && <Icon className="w-10 h-10 text-[rgba(var(--primary-rgb),0.8)]"/>}
-                            <span className="font-semibold text-sm text-center text-slate-200">{key}</span>
-                        </button>
-                    )
-                })}
-            </div>
+  const handleBackToThemes = () => {
+    setSelectedTheme(null);
+    setActiveGenerationKey(null);
+  };
+
+  let content;
+
+  // View 1: Unit List (when a theme is selected)
+  if (selectedSubjectKey && selectedTheme && subject) {
+    const theme = selectedTheme;
+    const themeSource: CurriculumSource = { subjectKey: selectedSubjectKey, theme: theme.theme, unit: ''};
+    const themeKey = `theme-${selectedSubjectKey}-${theme.theme}`;
+    const themeContext = buildContext('theme', theme, selectedSubjectKey);
+
+    content = (
+      <div key="unit-details" className="flex flex-col h-full w-full animate-fadeInUp">
+        <header className="flex-shrink-0 mb-4">
+          <button onClick={handleBackToThemes} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors mb-4">
+              <ArrowLeftIcon className="w-5 h-5"/> Back to Themes
+          </button>
+          <h2 className="font-heading text-2xl text-white">{theme.theme}</h2>
+          {theme.class && <p className="text-slate-400 mt-1">{theme.class}</p>}
+        </header>
+        <main className="flex-1 overflow-y-auto pr-2 space-y-2">
+           <ul className="space-y-1">
+              {theme.units.map(unit => {
+                  const source: CurriculumSource = { subjectKey: selectedSubjectKey!, theme: theme.theme, unit: unit.unit };
+                  const hasOutline = !!findExistingOutline(source);
+                  const unitKey = `unit-${selectedSubjectKey}-${theme.theme}-${unit.unit}`;
+                  const unitContext = buildContext('unit', unit, selectedSubjectKey!, theme);
+                  return (
+                      <li key={unit.unit + unit.grade}>
+                          <button onClick={() => toggleGenerationOptions(unitKey, unitContext)} className="w-full text-left p-3 rounded-md hover:bg-[rgba(var(--primary-rgb),0.15)] transition-colors flex justify-between items-center">
+                              <div className="flex items-center">
+                                  {hasOutline && <span className="w-2 h-2 bg-green-400 rounded-full mr-3 flex-shrink-0" title="Outline exists"></span>}
+                                  <span className="text-slate-200">{unit.unit}</span>
+                              </div>
+                              {unit.grade && <span className="ml-2 text-xs text-slate-400 bg-slate-700 px-1.5 py-0.5 rounded">{unit.grade}</span>}
+                          </button>
+                          <div className={`accordion-content ${activeGenerationKey === unitKey ? 'expanded' : ''}`}>
+                              <div className="accordion-content-inner">
+                                  <GenerationOptions 
+                                      onUploadClick={() => fileInputRef.current?.click()}
+                                      onAiClick={handleGenerateWithAi}
+                                      isReadingFile={isFileReading}
+                                  />
+                              </div>
+                          </div>
+                      </li>
+                  )
+              })}
+          </ul>
+          <div className="pt-4 mt-2 border-t border-slate-700/50">
+              <button onClick={() => toggleGenerationOptions(themeKey, themeContext)} className="w-full text-left p-3 rounded-lg bg-[rgba(var(--primary-rgb),0.15)] hover:bg-[rgba(var(--primary-rgb),0.25)] transition-colors flex justify-between items-center border border-[rgba(var(--primary-rgb),0.2)] active:scale-[0.98]">
+                  <div className="flex items-center">
+                      {findExistingOutline(themeSource) && <span className="w-2 h-2 bg-green-400 rounded-full mr-3 flex-shrink-0" title="Outline exists"></span>}
+                      <div className="flex flex-col">
+                          <span className="text-slate-100 font-semibold">Create Outline for "{theme.theme}" Theme</span>
+                          <span className="text-xs text-slate-400">Generates a single comprehensive outline for all units.</span>
+                      </div>
+                  </div>
+                  <StarIcon className="w-5 h-5 text-[rgba(var(--primary-rgb),1)] flex-shrink-0"/>
+              </button>
+              <div className={`accordion-content ${activeGenerationKey === themeKey ? 'expanded' : ''}`}>
+                  <div className="accordion-content-inner">
+                      <GenerationOptions 
+                          onUploadClick={() => fileInputRef.current?.click()}
+                          onAiClick={handleGenerateWithAi}
+                          isReadingFile={isFileReading}
+                      />
+                  </div>
+              </div>
+          </div>
+        </main>
+      </div>
+    );
+  // View 2: Theme List (when a subject is selected)
+  } else if (subject) {
+    content = (
+      <div key="subject-details" className="flex flex-col h-full w-full animate-fadeInUp">
+          <header className="flex-shrink-0 mb-4">
+          <button onClick={handleBackToSubjects} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors mb-4">
+              <ArrowLeftIcon className="w-5 h-5"/> Back to Subjects
+          </button>
+          <h1 className="font-heading text-2xl text-white">{subject.title}</h1>
+          <p className="text-slate-400 mt-1">Select a theme to view its units.</p>
+          </header>
+          
+          <main className="flex-1 overflow-y-auto pr-2 space-y-3">
+              {subject.themes.map(theme => (
+                <button 
+                  key={theme.theme} 
+                  onClick={() => setSelectedTheme(theme)} 
+                  className="w-full text-left p-4 glass-panel rounded-lg border border-slate-700/50 hover:bg-[rgba(var(--primary-rgb),0.05)] hover:border-[rgba(var(--primary-rgb),0.3)] transition-all duration-300 flex justify-between items-center active:scale-[0.99]"
+                >
+                    <div className="flex-1 flex items-center">
+                        <span className="font-semibold text-xl text-slate-100">{theme.theme}</span>
+                        {theme.class && <span className="text-sm font-normal text-slate-400 ml-2">({theme.class})</span>}
+                    </div>
+                    <ChevronRightIcon className="w-6 h-6 text-slate-400" />
+                </button>
+              ))}
+          </main>
+      </div>
+    );
+  // View 3: Subject Grid (initial view)
+  } else {
+    content = (
+      <div key="subject-grid" className="animate-fadeInUp">
+        <p className="text-lg text-center text-slate-300 mb-6">Select a subject to browse its curriculum.</p>
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+              {SUBJECT_ORDER.map(key => {
+                  const Icon = subjectIcons[key];
+                  return (
+                      <button key={key} onClick={() => setSelectedSubjectKey(key)} className="flex flex-col items-center justify-center gap-2 p-3 bg-white/5 rounded-xl hover:bg-white/10 border-2 border-dashed border-slate-700 hover:border-[rgba(var(--primary-rgb),0.5)] transition-all aspect-square active:scale-95 hover:scale-105">
+                          {Icon && <Icon className="w-10 h-10 text-[rgba(var(--primary-rgb),0.8)]"/>}
+                          <span className="font-semibold text-sm text-center text-slate-200">{key}</span>
+                      </button>
+                  )
+              })}
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {content}
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".pdf,.txt,.md" />
        {/* Existing Outline Modal */}
       <Modal isOpen={!!existingOutlineTarget} onClose={() => { setExistingOutlineTarget(null); setRememberChoice(false); }} title={`Outline Exists for "${existingOutlineTarget?.title}"`}>
