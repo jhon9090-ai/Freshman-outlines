@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { AdvancedSettings, CurriculumTheme, CurriculumUnit, StudyOutline, CurriculumSource } from '../types';
@@ -21,6 +17,8 @@ import MagnetIcon from './icons/MagnetIcon';
 import AtomIcon from './icons/AtomIcon';
 import BooksIcon from './icons/BooksIcon';
 import MessageCircleIcon from './icons/MessageCircleIcon';
+import GridIcon from './icons/GridIcon';
+import ListIcon from './icons/ListIcon';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
@@ -94,6 +92,7 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
   const [isFileReading, setIsFileReading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedTheme, setSelectedTheme] = useState<CurriculumTheme | null>(null);
+  const [subjectView, setSubjectView] = useState<'grid' | 'list'>('grid');
 
   const outlinesBySource = useMemo(() => {
     const map = new Map<string, StudyOutline>();
@@ -353,19 +352,43 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
   } else {
     content = (
       <div key="subject-grid" className="animate-fadeInUp">
-        <p className="text-lg text-center text-slate-300 mb-6">Select a subject to browse its curriculum.</p>
+        <div className="flex justify-between items-center mb-6">
+            <p className="text-lg text-slate-300">Select a subject to browse its curriculum.</p>
+            <div className="flex bg-slate-800/60 p-1 rounded-lg">
+                <button onClick={() => setSubjectView('grid')} title="Grid View" className={`p-1.5 rounded-md transition-colors ${subjectView === 'grid' ? 'bg-[rgba(var(--primary-rgb),1)] text-white' : 'text-slate-400 hover:bg-white/10'}`}>
+                    <GridIcon className="w-5 h-5"/>
+                </button>
+                <button onClick={() => setSubjectView('list')} title="List View" className={`p-1.5 rounded-md transition-colors ${subjectView === 'list' ? 'bg-[rgba(var(--primary-rgb),1)] text-white' : 'text-slate-400 hover:bg-white/10'}`}>
+                    <ListIcon className="w-5 h-5"/>
+                </button>
+            </div>
+        </div>
         <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-              {SUBJECT_ORDER.map(key => {
-                  const Icon = subjectIcons[key];
-                  return (
-                      <button key={key} onClick={() => setSelectedSubjectKey(key)} className="relative flex flex-col items-center justify-center gap-2 p-3 bg-white/5 rounded-xl hover:bg-white/10 border-2 border-dashed border-slate-700 hover:border-[rgba(var(--primary-rgb),0.5)] transition-all aspect-square active:scale-95 hover:scale-105 hover:z-20">
-                          {Icon && <Icon className="w-10 h-10 text-[rgba(var(--primary-rgb),0.8)]"/>}
-                          <span className="font-semibold text-sm text-center text-slate-200">{key}</span>
-                      </button>
-                  )
-              })}
-          </div>
+          {subjectView === 'grid' ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                  {SUBJECT_ORDER.map(key => {
+                      const Icon = subjectIcons[key];
+                      return (
+                          <button key={key} onClick={() => setSelectedSubjectKey(key)} className="relative flex flex-col items-center justify-center gap-2 p-3 bg-white/5 rounded-xl hover:bg-white/10 border-2 border-dashed border-slate-700 hover:border-[rgba(var(--primary-rgb),0.5)] transition-all aspect-square active:scale-95 hover:scale-105 hover:z-20">
+                              {Icon && <Icon className="w-10 h-10 text-[rgba(var(--primary-rgb),0.8)]"/>}
+                              <span className="font-semibold text-sm text-center text-slate-200">{key}</span>
+                          </button>
+                      )
+                  })}
+              </div>
+          ) : (
+              <div className="space-y-2">
+                  {SUBJECT_ORDER.map(key => {
+                      const Icon = subjectIcons[key];
+                      return (
+                          <button key={key} onClick={() => setSelectedSubjectKey(key)} className="w-full flex items-center gap-4 p-4 glass-panel rounded-lg hover:bg-[rgba(var(--primary-rgb),0.05)] hover:border-[rgba(var(--primary-rgb),0.3)] transition-all">
+                              {Icon && <Icon className="w-8 h-8 text-[rgba(var(--primary-rgb),0.8)] flex-shrink-0"/>}
+                              <span className="font-semibold text-lg text-slate-100">{curriculumData[key].title}</span>
+                          </button>
+                      )
+                  })}
+              </div>
+          )}
         </div>
       </div>
     );

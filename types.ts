@@ -1,7 +1,3 @@
-
-
-
-
 export interface LearningObjective {
   id: string;
   text: string;
@@ -43,10 +39,13 @@ export interface StudyOutline {
   mainTopics?: MainTopic[]; // For standard outlines
   units?: UnitOutline[]; // For theme outlines
   curriculumSource?: CurriculumSource; // Link to curriculum
+  sourceMaterial?: string; // The original material used for generation
 
   revisionAssistant: RevisionAssistant;
   completedObjectives: string[];
 }
+
+export type PartialStudyOutline = Partial<Omit<StudyOutline, 'id' | 'createdAt'>>;
 
 export interface MCQ {
     id: string;
@@ -116,11 +115,13 @@ export interface CurriculumData {
 
 export interface AppSettings {
   theme: string;
-  advSettings: AdvancedSettings;
   backgroundStyle: 'gridline' | 'griddot';
+  advSettings: AdvancedSettings;
   customAiConfig: {
     provider: 'gemini' | 'deepseek' | 'custom';
     customModelName: string;
     customApiKey: string;
   };
+  notionApiKey: string;
+  notionExportFormat: 'Normal' | 'Kanban' | 'Database';
 }

@@ -1,8 +1,5 @@
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource } from './types';
+import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline } from './types';
 import { generateStudyOutline } from './services/geminiService';
 import InputPanel from './components/InputPanel';
 import StudyView from './components/StudyView';
@@ -15,9 +12,18 @@ import SettingsIcon from './components/icons/SettingsIcon';
 const SETTINGS_STORAGE_KEY = 'app-settings';
 const OUTLINES_STORAGE_KEY = 'app-outlines';
 
+export interface ItemPath {
+  unitId?: string;
+  mainTopicId?: string;
+  subtopicId?: string;
+  objectiveId?: string;
+}
+
 const defaultSettings: AppSettings = {
   theme: 'purple',
   backgroundStyle: 'gridline',
+  notionApiKey: '',
+  notionExportFormat: 'Normal',
   customAiConfig: {
     provider: 'gemini',
     customModelName: '',
@@ -143,6 +149,7 @@ export default function App(): React.ReactNode {
         id: `outline-${Date.now()}`,
         title: title,
         createdAt: new Date().toISOString(),
+        sourceMaterial: generationInput,
         ...(curriculumSource && { curriculumSource }),
       };
       
@@ -213,7 +220,157 @@ export default function App(): React.ReactNode {
         return o;
     }));
   };
+
+  const handleUpdateOutlineItem = useCallback((
+    outlineId: string,
+    path: ItemPath,
+    newText: string
+  ) => {
+    setOutlines(prev =>
+      prev.map(outline => {
+        if (outline.id !== outlineId) return outline;
   
+        const newOutline = { ...outline }; 
+  
+        const findAndUpdate = (topics: MainTopic[]): MainTopic[] => {
+            return topics.map(mt => {
+                if (mt.id !== path.mainTopicId) return mt;
+
+                if (!path.subtopicId && path.mainTopicId) {
+                    return { ...mt, title: newText };
+                }
+
+                const newSubtopics = mt.subtopics.map(st => {
+                    if (st.id !== path.subtopicId) return st;
+
+                    if (!path.objectiveId) {
+                        return { ...st, title: newText };
+                    }
+
+                    const newObjectives = st.learningObjectives.map(obj => {
+                        if (obj.id !== path.objectiveId) return obj;
+                        return { ...obj, text: newText };
+                    });
+                    return { ...st, learningObjectives: newObjectives };
+                });
+                return { ...mt, subtopics: newSubtopics };
+            });
+        };
+
+        if (newOutline.isThemeOutline && path.unitId) {
+            newOutline.units = (newOutline.units || []).map(unit => {
+                if (unit.id !== path.unitId) return unit;
+                const newMainTopics = findAndUpdate(unit.mainTopics);
+                return { ...unit, mainTopics: newMainTopics };
+            });
+        } else if (!newOutline.isThemeOutline && path.mainTopicId) {
+            newOutline.mainTopics = findAndUpdate(newOutline.mainTopics || []);
+        } else if (!path.mainTopicId && !path.unitId) { // Editing main outline title
+            return { ...newOutline, title: newText };
+        }
+
+        return newOutline;
+      })
+    );
+  }, []);
+
+  const handleAddOutlineItem = useCallback((
+      outlineId: string,
+      type: 'mainTopic' | 'subtopic' | 'objective',
+      path: ItemPath
+  ) => {
+      setOutlines(prev => prev.map(outline => {
+          if (outline.id !== outlineId) return outline;
+
+          const newOutline = { ...outline };
+
+          // --- ADD MAIN TOPIC ---
+          if (type === 'mainTopic') {
+              const newMainTopic: MainTopic = { id: `main-${Date.now()}`, title: 'New Main Topic', subtopics: [] };
+              if (newOutline.isThemeOutline && path.unitId) {
+                  newOutline.units = (newOutline.units || []).map((unit: UnitOutline) => {
+                      if (unit.id !== path.unitId) return unit;
+                      return { ...unit, mainTopics: [...unit.mainTopics, newMainTopic] };
+                  });
+              } else {
+                  newOutline.mainTopics = [...(newOutline.mainTopics || []), newMainTopic];
+              }
+              return newOutline;
+          }
+
+          // --- ADD SUBTOPIC ---
+          if (type === 'subtopic' && path.mainTopicId) {
+              const newSubTopic: SubTopic = { id: `sub-${Date.now()}`, title: 'New Subtopic', learningObjectives: [] };
+              const updateMainTopics = (topics: MainTopic[]): MainTopic[] =>
+                  topics.map(mt => {
+                      if (mt.id !== path.mainTopicId) return mt;
+                      return { ...mt, subtopics: [...mt.subtopics, newSubTopic] };
+                  });
+              
+              if (newOutline.isThemeOutline && path.unitId) {
+                  newOutline.units = (newOutline.units || []).map(unit => {
+                      if (unit.id !== path.unitId) return unit;
+                      return { ...unit, mainTopics: updateMainTopics(unit.mainTopics) };
+                  });
+              } else {
+                  newOutline.mainTopics = updateMainTopics(newOutline.mainTopics || []);
+              }
+              return newOutline;
+          }
+
+          // --- ADD OBJECTIVE ---
+          if (type === 'objective' && path.mainTopicId && path.subtopicId) {
+              const newObjective: LearningObjective = { id: `obj-${Date.now()}`, text: 'New Learning Objective' };
+              const updateMainTopics = (topics: MainTopic[]): MainTopic[] =>
+                  topics.map(mt => {
+                      if (mt.id !== path.mainTopicId) return mt;
+                      return {
+                          ...mt,
+                          subtopics: mt.subtopics.map(st => {
+                              if (st.id !== path.subtopicId) return st;
+                              return { ...st, learningObjectives: [...st.learningObjectives, newObjective] };
+                          })
+                      };
+                  });
+
+              if (newOutline.isThemeOutline && path.unitId) {
+                   newOutline.units = (newOutline.units || []).map(unit => {
+                      if (unit.id !== path.unitId) return unit;
+                      return { ...unit, mainTopics: updateMainTopics(unit.mainTopics) };
+                  });
+              } else {
+                   newOutline.mainTopics = updateMainTopics(newOutline.mainTopics || []);
+              }
+              return newOutline;
+          }
+
+          return outline; // Should not be reached
+      }));
+  }, []);
+  
+  const handleUpdateOutline = useCallback((
+    outlineId: string,
+    newOutlineData: Partial<StudyOutline>
+  ) => {
+    setOutlines(prev =>
+      prev.map(o => {
+        if (o.id === outlineId) {
+          // Merge new data, but preserve critical client-side state
+          return {
+            ...o,
+            ...newOutlineData,
+            id: o.id,
+            createdAt: o.createdAt,
+            completedObjectives: o.completedObjectives,
+            curriculumSource: o.curriculumSource,
+            sourceMaterial: o.sourceMaterial,
+          };
+        }
+        return o;
+      })
+    );
+  }, []);
+
   const handleBackToTabs = () => {
     if (previousView === 'curriculum' && activeOutline?.curriculumSource) {
       setSelectedSubjectKey(activeOutline.curriculumSource.subjectKey);
@@ -234,6 +391,9 @@ export default function App(): React.ReactNode {
           appSettings={appSettings}
           onBack={handleBackToTabs}
           onUpdateProgress={handleUpdateProgress}
+          onUpdateItem={handleUpdateOutlineItem}
+          onAddItem={handleAddOutlineItem}
+          onUpdateOutline={handleUpdateOutline}
         />
       );
     }
@@ -291,6 +451,7 @@ export default function App(): React.ReactNode {
                               onSelectOutline={handleSelectOutline}
                               onDeleteOutline={handleDeleteOutline}
                               onRenameOutline={handleRenameOutline}
+                              appSettings={appSettings}
                           />
                       )}
                   </div>

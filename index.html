@@ -109,6 +109,45 @@
           display: none; /* remove triangle marker for webkit */
       }
 
+      /* Enhanced animation for accordion content */
+      details[open] > .accordion-content > .animated-inner {
+        animation: fadeInSlideUp 0.4s ease-out forwards;
+      }
+
+      /* Settings Panel Accordion */
+      .settings-accordion > summary {
+          list-style: none;
+          padding: 0.75rem 0.25rem;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-radius: 0.375rem;
+          transition: background-color 0.2s;
+          color: var(--text-light);
+      }
+      .settings-accordion > summary:hover {
+          background-color: rgba(var(--primary-rgb), 0.1);
+      }
+      .settings-accordion > summary::-webkit-details-marker {
+          display: none;
+      }
+      .settings-accordion > summary .summary-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .settings-accordion > summary .summary-chevron {
+          transition: transform 0.2s;
+      }
+      .settings-accordion[open] > summary .summary-chevron {
+          transform: rotate(90deg);
+      }
+      .settings-accordion .accordion-content-inner {
+          padding: 0.25rem 0.5rem 1rem 0.5rem;
+      }
+
       /* Added animations */
       @keyframes fadeIn {
         from { opacity: 0; }

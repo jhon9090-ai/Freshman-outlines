@@ -1,8 +1,4 @@
-
-
-
-
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AdvancedSettings, AppSettings, StudyOutline, SubTopic, MCQ, LearningObjective, ExamAnalysis, MainTopic, UnitOutline, CurriculumSource } from '../types';
 
 // --- UTILITY ---
@@ -84,7 +80,7 @@ const mainTopicSchema = {
                 learningObjectives: {
                     type: Type.ARRAY,
                     items: { type: Type.STRING },
-                    description: "A list of 2-5 clear, actionable learning objectives for this specific subtopic."
+                    description: "A list of 2-5 clear, actionable learning objectives for this specific subtopic. Good objectives start with verbs like 'Define,' 'Calculate,' 'Explain,' 'Apply.'"
                 }
             }
         }
@@ -236,7 +232,7 @@ export const generateStudyOutline = async (
   generationInput: string,
   appSettings: AppSettings,
   isTheme: boolean = false
-): Promise<Omit<StudyOutline, 'id' | 'title' | 'createdAt' | 'curriculumSource'>> => {
+): Promise<Omit<StudyOutline, 'id' | 'title' | 'createdAt' | 'curriculumSource' | 'sourceMaterial'>> => {
   
   const { ai, model } = getAiClient(appSettings);
   const commonInstructions = getCommonInstructions(appSettings.advSettings);
@@ -267,11 +263,11 @@ export const generateStudyOutline = async (
       }
     });
 
-    const response = await withTimeout(generatePromise, 60000, 'generate study outline');
+    const response: GenerateContentResponse = await withTimeout(generatePromise, 60000, 'generate study outline');
 
-    const jsonText = response.text?.trim();
+    const rawText = response.text?.trim();
 
-    if (!jsonText) {
+    if (!rawText) {
         const finishReason = response.candidates?.[0]?.finishReason;
         const safetyRatings = response.candidates?.[0]?.safetyRatings;
         let reasonMessage = `The AI returned an empty response. Finish Reason: ${finishReason || 'Unknown'}.`;
@@ -281,11 +277,22 @@ export const generateStudyOutline = async (
         throw new Error(reasonMessage);
     }
     
+    let jsonText = rawText;
+    // Defensively extract JSON from the response string.
+    if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.substring(7, jsonText.length - 3).trim();
+    }
+    const firstBrace = jsonText.indexOf('{');
+    const lastBrace = jsonText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+    }
+    
     let parsedJson;
     try {
         parsedJson = JSON.parse(jsonText);
     } catch(e) {
-        console.error("Failed to parse JSON from AI response:", jsonText);
+        console.error("Failed to parse JSON from AI response:", rawText);
         throw new Error("The AI returned an invalid data format. Please try again.");
     }
     
@@ -309,10 +316,13 @@ export const generateStudyOutline = async (
             subtopics: (topic.subtopics || []).map((sub: any, subIndex: number): SubTopic => ({
                 id: `${baseId}-main-${topicIndex}-sub-${subIndex}`,
                 title: sub.title || 'Untitled Subtopic',
-                learningObjectives: (sub.learningObjectives || []).map((objText: any, objIndex: number): LearningObjective => ({
-                    id: `${baseId}-main-${topicIndex}-sub-${subIndex}-obj-${objIndex}`,
-                    text: typeof objText === 'string' ? objText : 'Invalid Objective',
-                })),
+                learningObjectives: (sub.learningObjectives || []).map((objText: any, objIndex: number): LearningObjective => {
+                    const text = typeof objText === 'string' ? objText : 'Invalid Objective';
+                    return {
+                        id: `${baseId}-main-${topicIndex}-sub-${subIndex}-obj-${objIndex}`,
+                        text: text,
+                    };
+                }),
             }))
         }));
     };
@@ -366,7 +376,7 @@ export const generateCompletionMentoring = async (outline: StudyOutline, appSett
 
     try {
         const generatePromise = ai.models.generateContent({ model, contents: prompt, config: { systemInstruction } });
-        const response = await withTimeout(generatePromise, 15000, 'generate mentor feedback');
+        const response: GenerateContentResponse = await withTimeout(generatePromise, 15000, 'generate mentor feedback');
         return response.text;
     } catch (error) {
         console.error("Error generating mentor feedback:", error);
@@ -403,22 +413,121 @@ export const analyzeExamPaper = async (fileContent: string, topic: string, appSe
             }
         });
 
-        const response = await withTimeout(generatePromise, 60000, 'analyze exam paper');
+        const response: GenerateContentResponse = await withTimeout(generatePromise, 60000, 'analyze exam paper');
 
-        const jsonText = response.text.trim();
-        if (!jsonText) {
+        const rawText = response.text.trim();
+        if (!rawText) {
             throw new Error("The AI returned an empty analysis.");
         }
+        
+        let jsonText = rawText;
+        // Defensively extract JSON from the response string.
+        if (jsonText.startsWith('```json')) {
+            jsonText = jsonText.substring(7, jsonText.length - 3).trim();
+        }
+        const firstBrace = jsonText.indexOf('{');
+        const lastBrace = jsonText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+        }
 
-        const parsedJson = JSON.parse(jsonText);
-        return {
-            mainFocus: parsedJson.mainFocus || [],
-            questionTypes: parsedJson.questionTypes || [],
-            futurePredictions: parsedJson.futurePredictions || [],
-            practiceSources: parsedJson.practiceSources || [],
-        };
+        try {
+            const parsedJson = JSON.parse(jsonText);
+            return {
+                mainFocus: parsedJson.mainFocus || [],
+                questionTypes: parsedJson.questionTypes || [],
+                futurePredictions: parsedJson.futurePredictions || [],
+                practiceSources: parsedJson.practiceSources || [],
+            };
+        } catch (e) {
+            console.error("Failed to parse JSON from AI analysis:", rawText);
+            throw new Error("The AI returned an invalid data format for the analysis.");
+        }
 
     } catch (error) {
          handleGeminiError(error, 'analyze exam paper');
     }
+};
+
+
+export const restructureOutline = async (
+  currentOutline: StudyOutline,
+  command: string,
+  appSettings: AppSettings,
+  fileContent?: string,
+  sourceMaterial?: string
+): Promise<StudyOutline> => {
+  const { ai, model } = getAiClient(appSettings);
+  
+  const systemInstruction = `You are an AI assistant that modifies a study outline based on a user command.
+You will receive a JSON object representing the current outline, a text command, and potentially context from one or two sources:
+1.  **Original Source Material:** The full text from which the entire outline was initially generated.
+2.  **Attached File Content:** A smaller file provided with the current command for specific context.
+
+Your task is to apply the command to the outline and return the COMPLETE, UPDATED outline as a valid JSON object.
+
+**CRITICAL RULES:**
+-   **Prioritize Original Source:** If the user's command asks to add or verify information (e.g., "add the topic on mitochondria," "was X mentioned?"), you MUST check the 'Original Source Material' first. If the information exists there, use it as the definitive source of truth to make the change.
+-   **Use Attached File for Specifics:** Use the 'Attached File Content' as secondary context, especially for commands that explicitly reference it (e.g., "summarize the attached file into a new subtopic").
+-   **Preserve IDs:** Preserve all existing 'id' fields exactly as they are. This is essential for the application to work.
+-   **Create New IDs:** If you add a new item (e.g., a main topic, subtopic, or learning objective), create a new, unique, timestamp-based ID for it (e.g., 'new-main-' + Date.now()).
+-   **Maintain Structure:** The structure of the returned JSON must be identical to the input JSON, only with the content changes applied.
+-   **JSON Only:** Your response must be ONLY the raw JSON object. Do not wrap it in \`\`\`json ... \`\`\`, and do not include any other text or explanations.`;
+
+  const sourceMaterialContext = sourceMaterial
+    ? `\n\n---\n\n[Original Source Material]:\n\n${sourceMaterial}`
+    : '';
+
+  const fileContextPrompt = fileContent
+    ? `\n\n---\n\n[Attached File Content]:\n\n${fileContent}`
+    : '';
+
+  const finalCommand = command || (fileContent ? 'Based on the attached file, please update the outline.' : '');
+
+  const prompt = `Here is the current outline JSON:\n\n${JSON.stringify(currentOutline)}${sourceMaterialContext}${fileContextPrompt}\n\n---\n\nHere is the user's command to apply to the outline (using the context above as instructed):\n\n"${finalCommand}"`;
+
+
+  try {
+    const generatePromise = ai.models.generateContent({
+      model: model,
+      contents: prompt,
+      config: { 
+        systemInstruction,
+        // Using responseMimeType helps the model stick to JSON
+        responseMimeType: "application/json",
+      },
+    });
+
+    const response = await withTimeout(generatePromise, 90000, 'restructure outline');
+
+    const rawText = response.text.trim();
+    if (!rawText) {
+        throw new Error("The AI returned an empty response. It might have been unable to fulfill the request.");
+    }
+    
+    let jsonText = rawText;
+    // Defensively extract JSON from the response string.
+    if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.substring(7, jsonText.length - 3).trim();
+    }
+    const firstBrace = jsonText.indexOf('{');
+    const lastBrace = jsonText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+    }
+    
+    let parsedJson;
+    try {
+        parsedJson = JSON.parse(jsonText);
+    } catch(e) {
+        console.error("Failed to parse JSON from AI edit response:", rawText);
+        throw new Error("The AI returned an invalid data format. Please try again with a clearer command.");
+    }
+
+    // The AI should return the full object.
+    return parsedJson as StudyOutline;
+
+  } catch (error) {
+    handleGeminiError(error, 'restructure outline');
+  }
 };
