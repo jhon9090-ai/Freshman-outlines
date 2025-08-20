@@ -27,8 +27,8 @@ const SubtopicNode: React.FC<SubtopicNodeProps> = ({ subtopic, isLast, mainTopic
     const isComplete = totalObjectives > 0 && completedCount === totalObjectives;
 
     return (
-        <li className="relative pl-12 pb-8">
-            {!isLast && <div className="absolute left-[18px] top-5 h-full w-px bg-gradient-to-b from-transparent via-[rgba(var(--primary-rgb),0.4)] to-transparent"></div>}
+        <li className="relative pl-12 pb-10">
+            {!isLast && <div className="absolute left-[18px] top-5 h-full w-px bg-gradient-to-b from-transparent via-sky-500/30 to-transparent"></div>}
             
             <div className="absolute left-0 top-0">
                 <LevelNodeIcon isComplete={isComplete} />
@@ -44,20 +44,20 @@ const SubtopicNode: React.FC<SubtopicNodeProps> = ({ subtopic, isLast, mainTopic
                         onSave={(newText) => onUpdateItem({ mainTopicId, subtopicId: subtopic.id }, newText)}
                         Tag="h4"
                         isEditable={isEditing}
-                        className={`font-semibold text-lg flex-1 ${isComplete ? 'text-[rgba(var(--primary-rgb),1)]' : 'text-slate-200'}`}
-                        inputClassName="font-semibold text-lg"
+                        className={`font-semibold text-xl flex-1 ${isComplete ? 'text-sky-400' : 'text-slate-100'}`}
+                        inputClassName="font-semibold text-xl"
                     />
-                    <ChevronRightIcon className={`w-5 h-5 text-slate-400 transition-transform duration-300 ease-out ${isExpanded ? 'rotate-90' : ''}`} />
+                    <ChevronRightIcon className={`w-6 h-6 text-slate-400 transition-transform duration-300 ease-out ${isExpanded ? 'rotate-90' : ''}`} />
                 </div>
                 {totalObjectives > 0 && (
-                     <p className="text-xs text-slate-500">{completedCount} / {totalObjectives} objectives</p>
+                     <p className="text-sm text-slate-500">{completedCount} / {totalObjectives} objectives</p>
                 )}
             </div>
             
             <div className={`accordion-content ${isExpanded ? 'expanded' : ''}`}>
                 <div className="accordion-content-inner">
-                    <div className="mt-4 space-y-3 glass-panel p-4 rounded-lg">
-                        <h5 className="font-semibold text-[rgba(var(--primary-rgb),1)]">Learning Objectives</h5>
+                    <div className="mt-4 space-y-4 glass-panel p-5 rounded-xl">
+                        <h5 className="font-semibold text-sky-400">Learning Objectives</h5>
                         {subtopic.learningObjectives.map(obj => (
                             <Checkbox 
                                 key={obj.id} 
@@ -71,7 +71,7 @@ const SubtopicNode: React.FC<SubtopicNodeProps> = ({ subtopic, isLast, mainTopic
                         {isEditing && (
                             <button 
                                 onClick={() => onAddItem('objective', { mainTopicId, subtopicId: subtopic.id })}
-                                className="flex items-center gap-2 text-sm text-slate-400 hover:text-[rgba(var(--primary-rgb),1)] transition-colors pt-2"
+                                className="flex items-center gap-2 text-sm text-slate-400 hover:text-sky-400 transition-colors pt-2"
                             >
                                 <PlusCircleIcon className="w-4 h-4" />
                                 Add Learning Objective
@@ -95,16 +95,16 @@ const Level: React.FC<{
     isEditing: boolean;
 }> = ({ mainTopic, level, completedObjectives, onToggleObjective, onUpdateItem, onAddItem, isEditing }) => {
     return (
-        <div className="mb-8">
-            <div className="mb-6 p-4 bg-white/5 border border-slate-700 rounded-lg">
-                <span className="text-sm font-bold text-blue-400">LEVEL {level}</span>
+        <div className="mb-10">
+            <div className="mb-8 p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
+                <span className="text-sm font-bold text-sky-400">LEVEL {level}</span>
                  <EditableText 
                     initialValue={mainTopic.title}
                     onSave={(newText) => onUpdateItem({ mainTopicId: mainTopic.id }, newText)}
                     Tag="h3"
                     isEditable={isEditing}
-                    className="font-heading text-3xl text-white mt-1"
-                    inputClassName="font-heading text-3xl"
+                    className="text-3xl font-bold text-white mt-1"
+                    inputClassName="text-3xl font-bold"
                 />
             </div>
             <ul>
@@ -126,7 +126,7 @@ const Level: React.FC<{
                 <div className="pl-12">
                     <button 
                         onClick={() => onAddItem('subtopic', { mainTopicId: mainTopic.id })}
-                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-[rgba(var(--primary-rgb),1)] transition-colors"
+                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-sky-400 transition-colors"
                     >
                         <PlusCircleIcon className="w-4 h-4" />
                         Add Subtopic
@@ -165,7 +165,7 @@ const GamifiedStudyView: React.FC<GamifiedStudyViewProps> = ({ outline, complete
         {isEditing && (
             <button 
                 onClick={() => onAddItem('mainTopic', {})}
-                className="w-full flex items-center justify-center gap-2 py-2 my-4 text-sm text-[rgba(var(--primary-rgb),1)] hover:text-white transition-colors rounded-lg border-2 border-dashed border-slate-700 hover:border-[rgba(var(--primary-rgb),0.5)] hover:bg-white/5"
+                className="w-full flex items-center justify-center gap-2 py-3 my-4 text-base text-sky-400 hover:text-white transition-colors rounded-lg border-2 border-dashed border-slate-700 hover:border-sky-500/50 hover:bg-sky-500/10"
             >
                 <PlusCircleIcon className="w-5 h-5" />
                 Add New Level (Main Topic)
@@ -174,19 +174,19 @@ const GamifiedStudyView: React.FC<GamifiedStudyViewProps> = ({ outline, complete
         {/* Revision Assistant as final level */}
         {outline.revisionAssistant && (
             <div className="mb-8">
-                <div className="mb-6">
+                <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
                     <span className="text-sm font-bold text-amber-400">FINAL LEVEL</span>
-                    <h3 className="font-heading text-3xl text-white mt-1 p-4 bg-white/5 border border-slate-700 rounded-lg">Revision Assistant</h3>
+                    <h3 className="text-3xl font-bold text-white mt-1">Revision Assistant</h3>
                 </div>
                 <div className="relative pl-12">
                     <div className="absolute left-0 top-0">
                         <LevelNodeIcon isComplete={false} isBoss />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => onRevisionSelect('focus')} className="p-4 bg-white/5 rounded-lg text-white font-semibold hover:bg-white/10 transition-colors border border-transparent hover:border-[rgba(var(--primary-rgb),0.5)]">Focus Areas</button>
-                        <button onClick={() => onRevisionSelect('questions')} className="p-4 bg-white/5 rounded-lg text-white font-semibold hover:bg-white/10 transition-colors border border-transparent hover:border-[rgba(var(--primary-rgb),0.5)]">Exam Questions</button>
-                        <button onClick={() => onRevisionSelect('definitions')} className="p-4 bg-white/5 rounded-lg text-white font-semibold hover:bg-white/10 transition-colors border border-transparent hover:border-[rgba(var(--primary-rgb),0.5)]">Key Definitions</button>
-                        <button onClick={() => onRevisionSelect('quick-facts')} className="p-4 bg-white/5 rounded-lg text-white font-semibold hover:bg-white/10 transition-colors border border-transparent hover:border-[rgba(var(--primary-rgb),0.5)]">Quick Facts</button>
+                        <button onClick={() => onRevisionSelect('focus')} className="p-4 bg-slate-800 rounded-lg text-white font-semibold hover:bg-slate-700 transition-colors border border-slate-700 hover:border-sky-500">Focus Areas</button>
+                        <button onClick={() => onRevisionSelect('questions')} className="p-4 bg-slate-800 rounded-lg text-white font-semibold hover:bg-slate-700 transition-colors border border-slate-700 hover:border-sky-500">Exam Questions</button>
+                        <button onClick={() => onRevisionSelect('definitions')} className="p-4 bg-slate-800 rounded-lg text-white font-semibold hover:bg-slate-700 transition-colors border border-slate-700 hover:border-sky-500">Key Definitions</button>
+                        <button onClick={() => onRevisionSelect('quick-facts')} className="p-4 bg-slate-800 rounded-lg text-white font-semibold hover:bg-slate-700 transition-colors border border-slate-700 hover:border-sky-500">Quick Facts</button>
                     </div>
                 </div>
             </div>

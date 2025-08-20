@@ -18,28 +18,29 @@ const CheckmarkIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 const Checkbox: React.FC<CheckboxProps> = ({ label, isChecked, onToggle, onLabelSave, isEditable = true }) => {
   return (
-    <div className="flex items-start gap-3 group">
+    <div className="flex items-start gap-4 group">
       <button
         type="button"
         onClick={onToggle}
         aria-pressed={isChecked}
         className={`
-          flex-shrink-0 w-5 h-5 mt-[3px] rounded border-2 transition-all duration-200
+          flex-shrink-0 w-6 h-6 mt-0.5 rounded-full border-2 transition-all duration-200
           flex items-center justify-center
           ${isChecked
-            ? 'bg-[rgba(var(--primary-rgb),1)] border-[rgba(var(--primary-rgb),1)]'
-            : 'bg-transparent border-slate-500 group-hover:border-[rgba(var(--primary-rgb),0.7)]'
+            ? 'bg-sky-500 border-sky-500'
+            : 'bg-transparent border-slate-600 group-hover:border-sky-500/70'
           }
         `}
       >
-        <CheckmarkIcon className={`w-4 h-4 text-white transition-transform duration-200 ease-out ${isChecked ? 'scale-100' : 'scale-0'}`} />
+        <CheckmarkIcon className={`w-5 h-5 text-white transition-transform duration-200 ease-out ${isChecked ? 'scale-100 pop-in-animate' : 'scale-0'}`} />
       </button>
       <EditableText 
         initialValue={label}
         onSave={onLabelSave}
         Tag="div"
         isEditable={isEditable}
-        className={`w-full text-slate-300 transition-colors text-base ${isChecked ? 'text-slate-500 line-through' : ''}`}
+        className={`w-full text-slate-300 transition-colors text-lg ${isChecked ? 'text-slate-500 line-through' : ''}`}
+        inputClassName="text-lg"
       />
     </div>
   );

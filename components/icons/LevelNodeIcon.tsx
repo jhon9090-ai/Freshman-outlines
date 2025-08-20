@@ -7,7 +7,7 @@ interface LevelNodeIconProps {
 }
 
 const LevelNodeIcon: React.FC<LevelNodeIconProps> = ({ isComplete, isBoss }) => {
-    const colorClass = isBoss ? 'text-[rgba(var(--accent-rgb),1)]' : isComplete ? 'text-[rgba(var(--primary-rgb),1)]' : 'text-slate-600';
+    const colorClass = isBoss ? 'text-amber-400' : isComplete ? 'text-sky-500' : 'text-slate-700';
 
     return (
         <div className={`relative w-[38px] h-[38px] flex items-center justify-center ${colorClass}`}>

@@ -34,10 +34,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, topics, onCardClick
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`flex flex-col glass-panel rounded-lg p-3 transition-colors ${isOver ? 'bg-purple-900/50' : ''}`}
+            className={`flex flex-col glass-panel rounded-2xl p-4 transition-all duration-300 ${isOver ? 'bg-sky-500/10 border-sky-500' : ''}`}
         >
-            <h3 className="font-bold text-lg px-2 pb-2 text-white sticky top-0 bg-inherit z-10">{column.title} <span className="text-sm font-normal text-slate-400">{topics.length}</span></h3>
-            <div className="flex-1 flex flex-col space-y-3 overflow-y-auto pr-1">
+            <h3 className="font-bold text-xl px-2 pb-4 text-white sticky top-0 bg-transparent z-10">{column.title} <span className="text-base font-normal text-slate-400">{topics.length}</span></h3>
+            <div className="flex-1 flex flex-col space-y-4 overflow-y-auto pr-1">
                 {topics.map((topic) => (
                     <KanbanCard 
                         key={topic.id} 

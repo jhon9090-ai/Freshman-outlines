@@ -1,95 +1,122 @@
 <!DOCTYPE html>
-<html lang="en" class="dark theme-purple">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Outlines</title>
+    <title>Intelligent Outlines</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;700&display=swap" rel="stylesheet">
     <style>
       :root {
-        --background-dark: #0A001F;
-        --background-panel: rgba(26, 17, 44, 0.6);
-        --text-light: #e2e8f0;
-        --text-muted: #94a3b8; /* slate-400 */
-        --border-color: rgba(var(--primary-rgb), 0.15);
-        --border-muted: #475569; /* slate-600 */
-        --border-interactive-rgb: var(--primary-rgb);
-        --primary-rgb: 168, 85, 247; /* default purple */
-        --accent-rgb: 251, 191, 36; /* amber */
-      }
-      .theme-purple {
-        --primary-rgb: 168, 85, 247;
-        --background-dark: #0A001F;
-        --background-panel: rgba(26, 17, 44, 0.6);
-      }
-      .theme-blue {
-        --primary-rgb: 59, 130, 246;
-        --background-dark: #05102a;
-        --background-panel: rgba(17, 24, 39, 0.6);
-      }
-      .theme-green {
-        --primary-rgb: 34, 197, 94;
-        --background-dark: #041c10;
-        --background-panel: rgba(4, 28, 16, 0.6);
-      }
-      .theme-rose {
-        --primary-rgb: 244, 63, 94;
-        --background-dark: #2a050d;
-        --background-panel: rgba(42, 5, 13, 0.6);
+        --color-primary-accent: #0ea5e9;
+        --color-success: #22c55e;
+        --color-error: #ef4444;
+        --color-background: #020617;
+        --color-text-light: #ffffff;
+        --color-text-body: #cbd5e1;
+        --color-text-muted: #94a3b8;
+        --color-border: rgba(255, 255, 255, 0.1);
+        --color-panel-bg: rgba(15, 23, 42, 0.4);
       }
 
       body {
-        background-color: var(--background-dark);
-        color: var(--text-light);
+        background-color: var(--color-background);
+        color: var(--color-text-body);
+        font-family: 'Sora', sans-serif;
         overflow: hidden;
-        font-family: 'Inter', sans-serif;
-      }
-      .font-heading {
-        font-family: 'Playfair Display', serif;
-        font-weight: 700;
-      }
-      .glass-panel {
-        background-color: var(--background-panel);
-        border: 1px solid var(--border-color);
-      }
-      .bg-gridline {
+        overflow-x: hidden;
         background-image:
-          linear-gradient(rgba(var(--primary-rgb), 0.07) 1px, transparent 1px),
-          linear-gradient(to right, rgba(var(--primary-rgb), 0.07) 1px, transparent 1px);
-        background-size: 3rem 3rem;
+          radial-gradient(ellipse 80% 80% at 50% 50%, rgba(14, 165, 233, 0.15), transparent),
+          linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 100% 100%, 3rem 3rem, 3rem 3rem;
       }
-      .bg-griddot {
-        background-image: radial-gradient(rgba(var(--primary-rgb), 0.1) 1px, transparent 1px);
-        background-size: 1.5rem 1.5rem;
-      }
-      /* Custom scrollbar for webkit browsers */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: rgba(var(--primary-rgb), 0.1);
-        border-radius: 10px;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: rgba(var(--primary-rgb), 0.3);
-        border-radius: 10px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: rgba(var(--primary-rgb), 0.5);
-      }
-      h1, h2, h3, h4, h5, h6 {
-          font-weight: 700;
+
+      h1, h2, h3, h4, h5, h6, .font-editorial {
+        font-weight: 700;
+        color: var(--color-text-light);
       }
       p, li, span, div, button, label, input, select, option, summary {
-          font-weight: 500;
+        font-weight: 400;
+        color: var(--color-text-body);
+      }
+
+      .glass-panel {
+        background-color: var(--color-panel-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--color-border);
+        border-radius: 1rem; /* rounded-2xl */
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 
+                    inset 0 0 1px 1px rgba(255, 255, 255, 0.03);
       }
       
-      /* Accordion styles for smooth open/close */
+      .solid-card-panel {
+          background-color: #0f172a; /* slate-900 */
+          border: 1px solid var(--color-border);
+          border-radius: 1rem; /* rounded-2xl */
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(14, 165, 233, 0.3); border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(14, 165, 233, 0.5); }
+      
+      /* Interaction Language */
+      button, a, label, summary {
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      button:active, a:active, label:active {
+        transform: scale(0.97);
+      }
+
+      /* Keyframe Animations */
+      @keyframes quickFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes quickFadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+      @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+      @keyframes scaleOut {
+        from { opacity: 1; transform: scale(1); }
+        to { opacity: 0; transform: scale(0.95); }
+      }
+      @keyframes popIn {
+        0% { opacity: 0; transform: scale(0.5); }
+        70% { opacity: 1; transform: scale(1.1); }
+        100% { transform: scale(1); }
+      }
+      
+      .view-container-animate { animation: quickFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+      .modal-backdrop-animate { animation: fadeIn 0.3s ease-out forwards; }
+      .modal-panel-animate { animation: scaleIn 0.3s ease-out forwards; }
+      .pop-in-animate { animation: popIn 0.3s ease-out forwards; }
+      .animate-fade-out { animation: fadeOut 0.3s ease-out forwards; }
+      .animate-scale-out { animation: scaleOut 0.3s ease-out forwards; }
+      .animate-quickFadeIn { animation: quickFadeIn 0.3s ease-out forwards; }
+      .animate-quickFadeOut { animation: quickFadeOut 0.3s ease-out forwards; }
+
+
+      /* General Accordion styles for smooth open/close */
       .accordion-content {
         display: grid;
         grid-template-rows: 0fr;
@@ -100,7 +127,10 @@
         grid-template-rows: 1fr;
       }
       .accordion-content-inner {
-          overflow: hidden;
+        overflow: hidden;
+      }
+      details[open] .accordion-content-inner {
+        animation: fadeIn 0.4s ease-out;
       }
       details > summary {
           list-style: none; /* remove triangle marker */
@@ -108,98 +138,77 @@
       details > summary::-webkit-details-marker {
           display: none; /* remove triangle marker for webkit */
       }
-
-      /* Enhanced animation for accordion content */
-      details[open] > .accordion-content > .animated-inner {
-        animation: fadeInSlideUp 0.4s ease-out forwards;
+      
+      /* Dashboard Folder Accordion */
+      details.folder-accordion[open] > .folder-accordion-content {
+        grid-template-rows: 1fr;
+      }
+      .folder-accordion-content {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.3s ease-out;
+      }
+      .folder-accordion-content-inner {
+          overflow: hidden;
+          animation: fadeIn 0.5s ease-out;
       }
 
-      /* Settings Panel Accordion */
-      .settings-accordion > summary {
-          list-style: none;
-          padding: 0.75rem 0.25rem;
-          font-weight: 600;
-          cursor: pointer;
+      /* Settings Panel Accordion Alignment */
+      .settings-accordion summary {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-radius: 0.375rem;
-          transition: background-color 0.2s;
-          color: var(--text-light);
+          cursor: pointer;
+          list-style: none; /* remove triangle */
       }
-      .settings-accordion > summary:hover {
-          background-color: rgba(var(--primary-rgb), 0.1);
+      .settings-accordion summary::-webkit-details-marker {
+          display: none; /* remove triangle for webkit */
       }
-      .settings-accordion > summary::-webkit-details-marker {
-          display: none;
+      .settings-accordion .summary-title {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          font-weight: 600;
+          color: var(--color-text-light);
       }
-      .settings-accordion > summary .summary-title {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
+      .settings-accordion .summary-chevron {
+          transition: transform 0.3s ease-out;
       }
-      .settings-accordion > summary .summary-chevron {
-          transition: transform 0.2s;
-      }
-      .settings-accordion[open] > summary .summary-chevron {
+      .settings-accordion[open] .summary-chevron {
           transform: rotate(90deg);
       }
-      .settings-accordion .accordion-content-inner {
-          padding: 0.25rem 0.5rem 1rem 0.5rem;
+      
+      /* New "Fancy" Tab Animations */
+      .view-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.5s ease-in-out, scale 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        will-change: transform, opacity, scale;
       }
-
-      /* Added animations */
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+      .view-is-active {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+        z-index: 10;
+        pointer-events: auto;
       }
-      @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
+      .view-is-before {
+        transform: translateX(-40%) scale(0.9);
+        opacity: 0;
+        pointer-events: none;
       }
-      @keyframes zoomIn {
-        from { transform: scale(0.95); opacity: 0; }
-        to { transform: scale(1); opacity: 1; }
+      .view-is-after {
+        transform: translateX(40%) scale(0.9);
+        opacity: 0;
+        pointer-events: none;
       }
-      @keyframes zoomOut {
-        from { transform: scale(1); opacity: 1; }
-        to { transform: scale(0.95); opacity: 0; }
-      }
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      @keyframes fadeInSlideUp {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
-      .animate-fadeOut { animation: fadeOut 0.3s ease-out forwards; }
-      .animate-zoomIn { animation: zoomIn 0.3s ease-out forwards; }
-      .animate-zoomOut { animation: zoomOut 0.3s ease-out forwards; }
-      .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; }
-      .animate-fadeInSlideUp { animation: fadeInSlideUp 0.4s ease-out forwards; }
-
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.1.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "react/": "https://esm.sh/react@^19.1.1/",
+    "react": "https://esm.sh/react@^18.2.0",
+    "react-dom/": "https://esm.sh/react-dom@^18.2.0/",
+    "react/": "https://esm.sh/react@^18.2.0/",
     "@google/genai": "https://esm.sh/@google/genai@^1.12.0",
     "pdfjs-dist": "https://esm.sh/pdfjs-dist@^4.5.136",
     "jspdf": "https://esm.sh/jspdf@2.5.1",
@@ -210,8 +219,6 @@
 <link rel="stylesheet" href="/index.css">
 </head>
   <body>
-    <!-- 3D Layered Background -->
-    <div class="fixed top-[-50%] left-[-50%] w-[200%] h-[200%] -z-10 bg-gradient-radial from-[rgba(var(--primary-rgb),0.3)] via-[rgba(var(--primary-rgb),0.1)] to-transparent animate-[spin_20s_linear_infinite]"></div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

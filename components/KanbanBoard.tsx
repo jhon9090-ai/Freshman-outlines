@@ -31,7 +31,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ kanbanState, topics, onDragEn
     const topicsMap = new Map(topics.map(topic => [topic.id, topic]));
 
   return (
-    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
+    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
       {KANBAN_COLUMNS_ORDER.map((columnId) => {
         const column = kanbanState[columnId];
         const columnTopics = column.topicIds.map(id => topicsMap.get(id)).filter(Boolean) as MainTopic[];

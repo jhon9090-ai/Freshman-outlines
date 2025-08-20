@@ -62,7 +62,7 @@ const EditableText: React.FC<EditableTextProps> = ({ initialValue, onSave, class
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
         onClick={(e) => e.stopPropagation()}
-        className={`bg-slate-800/80 border border-[rgba(var(--primary-rgb),1)] rounded-md px-1 -my-0.5 w-full ${className} ${inputClassName}`}
+        className={`bg-slate-900 border border-sky-500 rounded-md px-2 py-1 -my-1 w-full outline-none ring-2 ring-sky-500/50 ${className} ${inputClassName}`}
         placeholder={placeholder}
       />
     );
@@ -71,7 +71,7 @@ const EditableText: React.FC<EditableTextProps> = ({ initialValue, onSave, class
   return (
     <Tag
       onClick={handleClick}
-      className={`${isEditable ? 'cursor-text hover:bg-white/10' : ''} rounded-md px-1 -my-0.5 transition-colors ${className}`}
+      className={`${isEditable ? 'cursor-text hover:bg-white/5' : ''} rounded-md px-2 py-1 -my-1 transition-colors ${className}`}
       title={isEditable ? "Click to edit" : ""}
     >
       {initialValue || <span className="text-slate-500 italic">{placeholder}</span>}

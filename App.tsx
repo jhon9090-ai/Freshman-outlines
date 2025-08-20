@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline } from './types';
 import { generateStudyOutline } from './services/geminiService';
 import InputPanel from './components/InputPanel';
@@ -8,6 +8,10 @@ import CurriculumView from './components/CurriculumView';
 import Dashboard from './components/Dashboard';
 import SettingsPanel from './components/SettingsPanel';
 import SettingsIcon from './components/icons/SettingsIcon';
+import BookOpenIcon from './components/icons/BookOpenIcon';
+import ZapIcon from './components/icons/ZapIcon';
+import StarIcon from './components/icons/StarIcon';
+import BookmarkIcon from './components/icons/BookmarkIcon';
 
 const SETTINGS_STORAGE_KEY = 'app-settings';
 const OUTLINES_STORAGE_KEY = 'app-outlines';
@@ -20,8 +24,6 @@ export interface ItemPath {
 }
 
 const defaultSettings: AppSettings = {
-  theme: 'purple',
-  backgroundStyle: 'gridline',
   notionApiKey: '',
   notionExportFormat: 'Normal',
   customAiConfig: {
@@ -38,23 +40,45 @@ const defaultSettings: AppSettings = {
   },
 };
 
-const TabButton: React.FC<{
-  tabId: AppView,
-  currentTab: AppView,
-  onClick: (tabId: AppView) => void,
-  children: React.ReactNode
-}> = ({ tabId, currentTab, onClick, children }) => (
-  <button 
-    onClick={() => onClick(tabId)}
-    className={`px-4 py-2 text-lg font-semibold transition-all duration-200 rounded-t-lg relative group
-      ${currentTab === tabId ? 'text-white' : 'text-slate-400 hover:text-white'}`}
+const NavButton: React.FC<{
+  viewId: AppView;
+  currentView: AppView;
+  onClick: (viewId: AppView) => void;
+  icon: React.ReactNode;
+}> = ({ viewId, currentView, onClick, icon }) => (
+  <button
+    onClick={() => onClick(viewId)}
+    className={`relative flex items-center justify-center h-12 w-12 rounded-full transition-all duration-300 ease-in-out
+      ${currentView === viewId ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-white'}`}
   >
-      {children}
-      <span className={`absolute bottom-0 left-0 w-full h-0.5 bg-[rgba(var(--primary-rgb),1)] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out
-        ${currentTab === tabId ? 'scale-x-100' : ''}`}
-      />
+    {icon}
   </button>
 );
+
+
+const BottomNavBar: React.FC<{
+  currentView: AppView;
+  onViewChange: (view: AppView) => void;
+  onSettingsClick: () => void;
+}> = ({ currentView, onViewChange, onSettingsClick }) => {
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+      <div className="glass-panel rounded-full p-2 flex items-center gap-2 shadow-2xl">
+        <NavButton viewId="curriculum" currentView={currentView} onClick={onViewChange} icon={<BookOpenIcon className="w-6 h-6" />} />
+        <NavButton viewId="create" currentView={currentView} onClick={onViewChange} icon={<ZapIcon className="w-6 h-6" />} />
+        <NavButton viewId="outlines" currentView={currentView} onClick={onViewChange} icon={<BookmarkIcon className="w-6 h-6" />} />
+        <div className="w-px h-8 bg-white/10 mx-2"></div>
+        <button
+          onClick={onSettingsClick}
+          className="relative flex items-center justify-center h-12 w-12 rounded-full transition-all text-slate-400 hover:text-white"
+        >
+          <SettingsIcon className="w-6 h-6" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 
 export default function App(): React.ReactNode {
   const [status, setStatus] = useState<AppStatus>('idle');
@@ -111,10 +135,8 @@ export default function App(): React.ReactNode {
     }
   }, [outlines]);
   
-  // Effect to apply and persist settings
+  // Effect to persist settings
   useEffect(() => {
-    document.documentElement.className = '';
-    document.documentElement.classList.add('dark', `theme-${appSettings.theme}`);
     try {
       localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(appSettings));
     } catch (e) {
@@ -382,80 +404,99 @@ export default function App(): React.ReactNode {
     setActiveOutline(null);
     setStatus('idle');
   }
+  
+  const handleNavChange = (newView: AppView) => {
+    if (newView !== 'curriculum') {
+      setSelectedSubjectKey(null);
+    }
+    setView(newView);
+  }
 
   const renderContent = () => {
     if (view === 'study' && activeOutline) {
       return (
-        <StudyView
-          outline={activeOutline}
-          appSettings={appSettings}
-          onBack={handleBackToTabs}
-          onUpdateProgress={handleUpdateProgress}
-          onUpdateItem={handleUpdateOutlineItem}
-          onAddItem={handleAddOutlineItem}
-          onUpdateOutline={handleUpdateOutline}
-        />
+        <div className="h-full w-full view-container-animate">
+            <StudyView
+              outline={activeOutline}
+              appSettings={appSettings}
+              onBack={handleBackToTabs}
+              onUpdateProgress={handleUpdateProgress}
+              onUpdateItem={handleUpdateOutlineItem}
+              onAddItem={handleAddOutlineItem}
+              onUpdateOutline={handleUpdateOutline}
+            />
+        </div>
       );
     }
     
-    const tabView = view === 'study' ? 'create' : view;
+    const viewOrder: AppView[] = ['curriculum', 'create', 'outlines'];
+    const activeIndex = viewOrder.indexOf(view);
+
+    const viewComponents: Record<AppView, React.ReactNode> = {
+        curriculum: (
+            <CurriculumView
+                onGenerate={handleGenerate}
+                outlines={outlines}
+                onSelectOutline={handleSelectOutline}
+                onDeleteOutlineBySource={handleDeleteOutlineBySource}
+                selectedSubjectKey={selectedSubjectKey}
+                setSelectedSubjectKey={setSelectedSubjectKey}
+                defaultSettings={appSettings.advSettings}
+            />
+        ),
+        create: (
+            <InputPanel
+                onGenerate={handleGenerate}
+                status={status}
+                error={error}
+                onClearError={() => setError(null)}
+                defaultSettings={appSettings.advSettings}
+                onUpdateDefaultSettings={handleUpdateDefaultAdvancedSettings}
+            />
+        ),
+        outlines: (
+            <Dashboard 
+                outlines={outlines}
+                onSelectOutline={handleSelectOutline}
+                onDeleteOutline={handleDeleteOutline}
+                onRenameOutline={handleRenameOutline}
+                appSettings={appSettings}
+            />
+        ),
+        study: null, // 'study' is handled separately
+    };
 
     return (
-        <div className="flex flex-col items-center justify-start w-full h-full p-4 md:p-8">
-            <div className={`w-full max-w-4xl h-full flex flex-col ${selectedSubjectKey && tabView === 'curriculum' ? 'max-w-full' : ''}`}>
-                <div className="w-full text-left mb-4 flex justify-between items-start">
-                    <h1 className="font-heading text-3xl text-white">
-                      Intelligent Outlines
-                    </h1>
-                     <button 
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/20 transition-all duration-200 hover:scale-110 active:scale-100"
-                        title="Settings"
-                    >
-                        <SettingsIcon className="w-6 h-6" />
-                    </button>
+        <div className="flex flex-col items-center justify-start w-full h-full p-4 md:p-8 overflow-x-hidden">
+            <div className={`w-full max-w-5xl h-full flex flex-col transition-all duration-300 ${selectedSubjectKey && view === 'curriculum' ? 'max-w-full' : ''}`}>
+                 <header className={`transition-all duration-500 ease-in-out overflow-hidden ${view === 'study' ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'}`}>
+                    <div className="w-full text-center mb-12">
+                        <h1 className="text-4xl lg:text-5xl font-bold text-white bg-gradient-to-b from-white to-slate-400 text-transparent bg-clip-text">
+                          Intelligent Outlines
+                        </h1>
+                    </div>
+                </header>
+
+                <div className="flex-1 relative overflow-hidden">
+                    {viewOrder.map((viewId, index) => {
+                        let viewClass = '';
+                        if (index === activeIndex) {
+                            viewClass = 'view-is-active';
+                        } else if (index < activeIndex) {
+                            viewClass = 'view-is-before';
+                        } else {
+                            viewClass = 'view-is-after';
+                        }
+
+                        return (
+                            <div key={viewId} className={`view-container ${viewClass}`}>
+                                <div className="h-full w-full overflow-y-auto overflow-x-hidden pr-2">
+                                    {viewComponents[viewId]}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
-
-                <>
-                  <div className="flex justify-center border-b border-white/10 mb-6">
-                      <TabButton tabId="curriculum" currentTab={tabView} onClick={(tab) => setView(tab)}>Curriculum</TabButton>
-                      <TabButton tabId="create" currentTab={tabView} onClick={(tab) => { setView(tab); setSelectedSubjectKey(null); }}>Create New</TabButton>
-                      <TabButton tabId="outlines" currentTab={tabView} onClick={(tab) => { setView(tab); setSelectedSubjectKey(null); }}>My Outlines</TabButton>
-                  </div>
-
-                  <div key={tabView} className="flex-1 overflow-y-auto pr-2 animate-fadeInSlideUp">
-                      {tabView === 'create' && (
-                          <InputPanel
-                              onGenerate={handleGenerate}
-                              status={status}
-                              error={error}
-                              onClearError={() => setError(null)}
-                              defaultSettings={appSettings.advSettings}
-                              onUpdateDefaultSettings={handleUpdateDefaultAdvancedSettings}
-                          />
-                      )}
-                      {tabView === 'curriculum' && (
-                          <CurriculumView
-                              onGenerate={handleGenerate}
-                              outlines={outlines}
-                              onSelectOutline={handleSelectOutline}
-                              onDeleteOutlineBySource={handleDeleteOutlineBySource}
-                              selectedSubjectKey={selectedSubjectKey}
-                              setSelectedSubjectKey={setSelectedSubjectKey}
-                              defaultSettings={appSettings.advSettings}
-                          />
-                      )}
-                      {tabView === 'outlines' && (
-                          <Dashboard 
-                              outlines={outlines}
-                              onSelectOutline={handleSelectOutline}
-                              onDeleteOutline={handleDeleteOutline}
-                              onRenameOutline={handleRenameOutline}
-                              appSettings={appSettings}
-                          />
-                      )}
-                  </div>
-                </>
             </div>
       </div>
     );
@@ -463,8 +504,8 @@ export default function App(): React.ReactNode {
 
   if (status === 'loading') {
     return (
-      <div className={`flex flex-col items-center justify-center h-screen w-screen text-slate-200 font-sans antialiased bg-${appSettings.backgroundStyle}`}>
-        <Spinner className="h-12 w-12 text-[rgba(var(--primary-rgb),1)]" />
+      <div className={`flex flex-col items-center justify-center h-screen w-screen text-slate-200 antialiased`}>
+        <Spinner className="h-12 w-12 text-sky-500" />
         <p className="mt-4 text-lg text-slate-300 animate-pulse">Generating your study outline...</p>
         <p className="text-sm text-slate-400">The AI is thinking. This may take a moment.</p>
       </div>
@@ -472,8 +513,15 @@ export default function App(): React.ReactNode {
   }
   
   return (
-    <div className={`h-screen w-screen text-slate-200 font-sans antialiased bg-${appSettings.backgroundStyle} overflow-hidden`}>
+    <div className={`h-screen w-screen text-slate-300 antialiased overflow-hidden`}>
         {renderContent()}
+        <div className={`transition-all duration-300 ease-in-out ${view === 'study' ? 'opacity-0 -bottom-20 pointer-events-none' : 'opacity-100 bottom-6'}`}>
+          <BottomNavBar
+            currentView={view}
+            onViewChange={handleNavChange}
+            onSettingsClick={() => setIsSettingsOpen(true)}
+          />
+        </div>
         <SettingsPanel 
             isOpen={isSettingsOpen}
             onClose={() => setIsSettingsOpen(false)}

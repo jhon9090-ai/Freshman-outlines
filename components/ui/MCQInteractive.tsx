@@ -6,6 +6,12 @@ interface MCQInteractiveProps {
   mcq: MCQ;
 }
 
+const CheckIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+);
+
 const MCQInteractive: React.FC<MCQInteractiveProps> = ({ mcq }) => {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const isAnswered = selectedOption !== null;
@@ -16,41 +22,53 @@ const MCQInteractive: React.FC<MCQInteractiveProps> = ({ mcq }) => {
     }
   };
 
-  const getButtonClass = (index: number) => {
+  const getOptionClass = (index: number) => {
+    const isSelected = selectedOption === index;
+    const isCorrect = index === mcq.correctAnswerIndex;
+
     if (!isAnswered) {
-      return 'bg-slate-700 hover:bg-slate-600';
+      return 'border-slate-700 hover:border-sky-500 hover:bg-sky-500/5 hover:scale-[1.02]';
     }
-    if (index === mcq.correctAnswerIndex) {
-      return 'bg-green-500/80 ring-2 ring-green-400';
+    if (isCorrect) {
+      return 'border-green-500 bg-green-500/10 scale-[1.02] shadow-lg shadow-green-500/10';
     }
-    if (index === selectedOption) {
-      return 'bg-red-500/80 ring-2 ring-red-400';
+    if (isSelected && !isCorrect) {
+      return 'border-red-500 bg-red-500/10';
     }
-    return 'bg-slate-800 opacity-60';
+    return 'border-slate-700 opacity-60';
   };
 
   return (
-    <div className="p-4 border border-slate-700 rounded-lg bg-slate-800/50">
-      <p className="text-slate-200 mb-4 font-medium">{mcq.question}</p>
-      <div className="space-y-2">
+    <div className="p-6 border border-slate-800 rounded-2xl bg-slate-900/50">
+      <p className="text-slate-100 mb-6 font-semibold text-xl leading-relaxed">{mcq.question}</p>
+      <div className="space-y-4">
         {mcq.options.map((option, index) => (
-          <button
+          <label
             key={index}
-            onClick={() => handleOptionSelect(index)}
-            disabled={isAnswered}
-            className={`w-full text-left p-3 rounded-md transition-all duration-200 text-white ${getButtonClass(index)}`}
+            className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${getOptionClass(index)}`}
           >
-            <span className="font-mono mr-3">{String.fromCharCode(65 + index)}.</span>
-            {option}
-          </button>
+            <input
+              type="radio"
+              name={mcq.id}
+              checked={selectedOption === index}
+              onChange={() => handleOptionSelect(index)}
+              disabled={isAnswered}
+              className="hidden"
+            />
+            <div className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all
+              ${selectedOption === index ? 'border-sky-500 bg-sky-500' : 'border-slate-600 group-hover:border-sky-500'}`}>
+                {selectedOption === index && <CheckIcon className="w-4 h-4 text-white pop-in-animate" />}
+            </div>
+            <span className="text-lg text-slate-200">{option}</span>
+          </label>
         ))}
       </div>
       {isAnswered && (
-        <div className={`mt-4 p-3 rounded-lg text-sm ${selectedOption === mcq.correctAnswerIndex ? 'bg-green-500/20 text-green-200' : 'bg-red-500/20 text-red-200'}`}>
-          <p className="font-bold mb-1">
+        <div className={`mt-6 p-4 rounded-lg text-base transition-opacity duration-300 modal-panel-animate ${selectedOption === mcq.correctAnswerIndex ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'}`}>
+          <p className="font-bold mb-1 text-white">
             {selectedOption === mcq.correctAnswerIndex ? 'Correct!' : 'Incorrect.'}
           </p>
-          <p className="text-slate-300">{mcq.explanation}</p>
+          <p>{mcq.explanation}</p>
         </div>
       )}
     </div>

@@ -175,7 +175,7 @@ export const generateComponentPdf = async (elementId: string, fileName: string, 
 
   try {
     const canvas = await html2canvas(element, {
-      backgroundColor: customBgColor || '#0A001F',
+      backgroundColor: customBgColor || '#020617',
       scale: 2,
       useCORS: true,
     });

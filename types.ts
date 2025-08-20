@@ -114,8 +114,6 @@ export interface CurriculumData {
 }
 
 export interface AppSettings {
-  theme: string;
-  backgroundStyle: 'gridline' | 'griddot';
   advSettings: AdvancedSettings;
   customAiConfig: {
     provider: 'gemini' | 'deepseek' | 'custom';

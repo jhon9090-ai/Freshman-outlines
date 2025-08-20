@@ -14,7 +14,7 @@ interface SidePeekPanelProps {
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div className="mb-6">
-    <h3 className="text-xl font-bold mb-2 text-[rgba(var(--primary-rgb),1)]">{title}</h3>
+    <h3 className="text-xl font-bold mb-3 text-sky-400">{title}</h3>
     {children}
   </div>
 );
@@ -62,14 +62,14 @@ const SidePeekPanel: React.FC<SidePeekPanelProps> = ({ topic, onClose, width, se
           onMouseDown={handleMouseDown}
           className="w-2 h-full cursor-col-resize flex-shrink-0 group"
         >
-          <div className="w-0.5 h-full bg-transparent group-hover:bg-[rgba(var(--primary-rgb),0.5)] transition-colors mx-auto"></div>
+          <div className="w-0.5 h-full bg-transparent group-hover:bg-sky-500/50 transition-colors mx-auto"></div>
         </div>
-        <div className="flex-1 glass-panel rounded-lg p-6 flex flex-col overflow-hidden">
+        <div className="flex-1 glass-panel rounded-2xl p-6 flex flex-col overflow-hidden">
           {topic && (
             <>
-              <div className="flex justify-between items-start mb-4">
-                <h2 className={`font-heading text-2xl ${isRevisionTopic ? 'text-amber-300' : 'text-white'}`}>{topic.title}</h2>
-                <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-full">
+              <div className="flex justify-between items-start mb-6">
+                <h2 className={`text-3xl font-bold ${isRevisionTopic ? 'text-amber-300' : 'text-white'}`}>{topic.title}</h2>
+                <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full transition-colors">
                   <XIcon className="w-6 h-6" />
                 </button>
               </div>

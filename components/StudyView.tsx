@@ -36,16 +36,16 @@ const UnitLevelNode: React.FC<{
   onClick: () => void;
 }> = ({ unit, isComplete, isLast, onClick }) => {
     return (
-        <li className="relative pl-12 pb-10">
-            {!isLast && <div className="absolute left-[18px] top-5 h-full w-px bg-gradient-to-b from-transparent via-[rgba(var(--primary-rgb),0.4)] to-transparent"></div>}
+        <li className="relative pl-12 pb-12">
+            {!isLast && <div className="absolute left-[18px] top-5 h-full w-px bg-gradient-to-b from-transparent via-sky-500/30 to-transparent"></div>}
             
             <div className="absolute left-0 top-0">
                 <LevelNodeIcon isComplete={isComplete} />
             </div>
 
             <button onClick={onClick} className="w-full text-left group transition-transform duration-200 hover:scale-[1.02]">
-                <h4 className={`font-semibold text-xl group-hover:text-[rgba(var(--primary-rgb),0.8)] transition-colors ${isComplete ? 'text-[rgba(var(--primary-rgb),1)]' : 'text-slate-200'}`}>{unit.unitTitle}</h4>
-                <p className="text-sm text-slate-400 mt-1">{unit.mainTopics.length} main topics</p>
+                <h4 className={`font-semibold text-2xl group-hover:text-sky-400 transition-colors ${isComplete ? 'text-sky-500' : 'text-slate-100'}`}>{unit.unitTitle}</h4>
+                <p className="text-base text-slate-400 mt-1">{unit.mainTopics.length} main topics</p>
             </button>
         </li>
     );
@@ -60,6 +60,9 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   const [selectedUnit, setSelectedUnit] = useState<UnitOutline | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
+  const [cardAnimation, setCardAnimation] = useState('view-container-animate');
+  const [viewAnimationKey, setViewAnimationKey] = useState(0);
+
 
   const activeStudyData = useMemo(() => {
     if (outline.isThemeOutline && selectedUnit) {
@@ -126,17 +129,24 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   const progressPercentage = totalCards > 0 ? ((currentIndex + 1) / totalCards) * 100 : 0;
 
   const handleNext = () => {
-    if (currentIndex < totalCards - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      setShowCompletionModal(true);
+    if (currentIndex >= totalCards - 1) {
+        setShowCompletionModal(true);
+        return;
     }
+    setCardAnimation('animate-quickFadeOut');
+    setTimeout(() => {
+        setCurrentIndex(i => i + 1);
+        setCardAnimation('animate-quickFadeIn');
+    }, 300);
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
+    if (currentIndex <= 0) return;
+    setCardAnimation('animate-quickFadeOut');
+    setTimeout(() => {
+        setCurrentIndex(i => i - 1);
+        setCardAnimation('animate-quickFadeIn');
+    }, 300);
   };
 
   const handleRevisionSelect = (section: RevisionSection) => {
@@ -154,6 +164,12 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
     }
   };
 
+  const handleViewModeChange = (mode: ViewMode) => {
+      if (mode === viewMode) return;
+      setViewMode(mode);
+      setViewAnimationKey(k => k + 1);
+  };
+
   const renderCardView = () => {
     if (!currentCard) return null;
 
@@ -164,7 +180,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
           mainTopic={currentCard.data}
           completedObjectives={outline.completedObjectives}
           onToggleObjective={onUpdateProgress}
-          animationClass="animate-fadeInUp"
+          animationClass={cardAnimation}
           onUpdateItem={(path, newText) => onUpdateItem(outline.id, { unitId: selectedUnit?.id, ...path }, newText)}
           onAddItem={(type, path) => onAddItem(outline.id, type, { unitId: selectedUnit?.id, ...path })}
           isEditing={isEditing}
@@ -176,7 +192,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
         key={currentIndex}
         revisionData={currentCard.data}
         onSectionSelect={handleRevisionSelect}
-        animationClass="animate-fadeInUp"
+        animationClass={cardAnimation}
       />;
     }
     return null;
@@ -220,14 +236,14 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   }
   
   const ViewToggleButton: React.FC<{mode: ViewMode, icon: React.ReactNode}> = ({mode, icon}) => (
-      <button onClick={() => setViewMode(mode)} className={`p-2 rounded-md transition-all duration-200 hover:scale-110 active:scale-100 ${viewMode === mode ? 'bg-[rgba(var(--primary-rgb),1)] text-white' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}>
+      <button onClick={() => handleViewModeChange(mode)} className={`p-2 rounded-lg transition-all duration-200 ${viewMode === mode ? 'bg-sky-500 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'}`}>
           {icon}
       </button>
   );
   
   const renderUnitSelectionView = () => (
-    <div key="unit-selection" className="flex flex-col h-full w-full p-6 animate-fadeInUp">
-        <header className="flex-shrink-0 mb-4">
+    <div key="unit-selection" className="flex flex-col h-full w-full p-8 animate-fadeInUp">
+        <header className="flex-shrink-0 mb-8">
           <div className="flex justify-between items-start">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
               <ArrowLeftIcon className="w-5 h-5" /> Back to Main
@@ -238,15 +254,15 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
                   initialValue={outline.title}
                   onSave={(newText) => onUpdateItem(outline.id, {}, newText)}
                   isEditable={false} // Title not editable in this view
-                  className="text-2xl font-bold text-white truncate"
-                  inputClassName="text-2xl font-bold"
+                  className="text-4xl font-bold text-white truncate"
+                  inputClassName="text-4xl font-bold"
               />
-              <p className="text-slate-400">{outline.subject}</p>
+              <p className="text-slate-400 text-lg">{outline.subject}</p>
             </div>
           </div>
         </header>
-        <main className="w-full h-full max-w-3xl mx-auto overflow-y-auto pr-4">
-           <h2 className="font-heading text-3xl text-center mb-8">Theme Progression</h2>
+        <main className="w-full h-full max-w-4xl mx-auto overflow-y-auto pr-4">
+           <h2 className="text-3xl font-bold text-center mb-12">Theme Progression</h2>
             <ul>
               {(outline.units || []).map((unit, index, arr) => {
                 const allUnitObjectives = unit.mainTopics.flatMap(t => t.subtopics.flatMap(s => s.learningObjectives)).map(o => o.id);
@@ -269,8 +285,8 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
                     <LevelNodeIcon isComplete={false} isBoss />
                 </div>
                 <button onClick={() => handleRevisionSelect('focus')} className="w-full text-left group transition-transform duration-200 hover:scale-[1.02]">
-                    <h4 className="font-semibold text-xl text-amber-300 group-hover:text-amber-200 transition-colors">Theme Revision Assistant</h4>
-                    <p className="text-sm text-slate-400 mt-1">Review the entire theme</p>
+                    <h4 className="font-semibold text-2xl text-amber-300 group-hover:text-amber-200 transition-colors">Theme Revision Assistant</h4>
+                    <p className="text-base text-slate-400 mt-1">Review the entire theme</p>
                 </button>
               </li>
             </ul>
@@ -281,20 +297,20 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   const currentCard = studyCards[currentIndex];
 
   const renderStudyContentView = () => (
-    <div key={selectedUnit ? selectedUnit.id : 'main-outline'} className="flex flex-col h-full w-full p-6 animate-fadeIn">
-      <header className="flex-shrink-0 mb-4 relative">
+    <div key={selectedUnit ? selectedUnit.id : 'main-outline'} className="flex flex-col h-full w-full p-8 animate-fadeIn relative">
+      <header className="flex-shrink-0 mb-6 relative">
         <div className="flex justify-between items-center">
           <button onClick={handleBackAction} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors z-10">
             <ArrowLeftIcon className="w-5 h-5" /> {selectedUnit ? `Back to Theme` : 'Back to Main'}
           </button>
           
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg border border-white/10">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 bg-slate-900/70 p-1.5 rounded-xl border border-slate-700">
               <ViewToggleButton mode="card" icon={<CardViewIcon className="w-5 h-5"/>} />
               <ViewToggleButton mode="gamified" icon={<PathIcon className="w-5 h-5"/>} />
-              <div className="w-px h-5 bg-white/20 mx-1"></div>
+              <div className="w-px h-6 bg-slate-700 mx-1"></div>
               <button 
                 onClick={() => setIsEditing(prev => !prev)}
-                className={`p-2 rounded-md transition-all duration-200 ${isEditing ? 'bg-[rgba(var(--primary-rgb),1)] text-white ring-2 ring-offset-2 ring-offset-slate-900 ring-[rgba(var(--primary-rgb),1)]' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                className={`p-2 rounded-lg transition-all duration-200 ${isEditing ? 'bg-sky-500 text-white ring-2 ring-offset-2 ring-offset-slate-950 ring-sky-500' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'}`}
                 title={isEditing ? "Finish Editing" : "Edit Outline"}
               >
                 <EditIcon className="w-5 h-5"/>
@@ -314,9 +330,9 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
           </div>
         </div>
         {viewMode === 'card' && (
-            <div className="w-full bg-slate-700 rounded-full h-2 mt-4">
+            <div className="w-full bg-slate-800 rounded-full h-2 mt-6">
             <div 
-                className="bg-gradient-to-r from-[rgba(var(--primary-rgb),0.7)] to-[rgba(var(--primary-rgb),1)] h-2 rounded-full transition-all duration-500" 
+                className="bg-sky-500 h-2 rounded-full transition-all duration-500" 
                 style={{ width: `${progressPercentage}%` }}
             ></div>
             </div>
@@ -324,8 +340,8 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center overflow-hidden">
-        {viewMode === 'card' ? renderCardView() : (
-          <div key="gamified-view" className="w-full h-full animate-fadeInUp">
+        <div key={viewAnimationKey} className="w-full h-full view-container-animate">
+          {viewMode === 'card' ? renderCardView() : (
             <GamifiedStudyView 
               outline={activeStudyData} 
               completedObjectives={outline.completedObjectives}
@@ -335,18 +351,21 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
               onAddItem={(type, path) => onAddItem(outline.id, type, { unitId: selectedUnit?.id, ...path })}
               isEditing={isEditing}
             />
-          </div>
-        )}
+          )}
+        </div>
       </main>
 
-      {isAiPanelOpen && <AiEditPanel onCommand={handleAiCommand} />}
+      <div className={`transition-all duration-500 ease-in-out ${isAiPanelOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20 pointer-events-none'}`}>
+          <AiEditPanel onCommand={handleAiCommand} />
+      </div>
+
 
       {viewMode === 'card' && (
-        <footer className="flex-shrink-0 flex flex-col items-center mt-4 w-full max-w-4xl mx-auto">
+        <footer className="flex-shrink-0 flex flex-col items-center mt-6 w-full max-w-4xl mx-auto">
             {isEditing && (
                 <button 
                     onClick={handleAddMainTopic}
-                    className="w-full flex items-center justify-center gap-2 py-2 mb-4 text-sm text-[rgba(var(--primary-rgb),1)] hover:text-white transition-colors rounded-lg border-2 border-dashed border-slate-700 hover:border-[rgba(var(--primary-rgb),0.5)] hover:bg-white/5"
+                    className="w-full flex items-center justify-center gap-2 py-3 mb-4 text-base text-sky-400 hover:text-white transition-colors rounded-lg border-2 border-dashed border-slate-700 hover:border-sky-500/50 hover:bg-sky-500/10"
                 >
                     <PlusCircleIcon className="w-5 h-5" />
                     Add Main Topic
@@ -356,7 +375,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
                 <button 
                 onClick={handlePrev} 
                 disabled={currentIndex === 0}
-                className="bg-white/10 text-white font-semibold py-2 px-6 rounded-md hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                className="bg-slate-800 text-white font-semibold py-3 px-8 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                 >
                 Previous
                 </button>
@@ -365,7 +384,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
                 </span>
                 <button 
                 onClick={handleNext} 
-                className="bg-gradient-to-r from-[rgba(var(--primary-rgb),0.8)] to-[rgba(var(--primary-rgb),1)] text-white font-bold py-2 px-6 rounded-lg hover:from-[rgba(var(--primary-rgb),1)] hover:to-[rgba(var(--primary-rgb),0.9)] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                className="bg-sky-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-lg shadow-sky-500/20"
                 >
                 {currentIndex >= totalCards - 1 ? 'Finish' : 'Next'}
                 </button>

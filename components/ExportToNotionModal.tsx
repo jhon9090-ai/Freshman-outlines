@@ -47,8 +47,8 @@ const ExportToNotionModal: React.FC<ExportToNotionModalProps> = ({ isOpen, onClo
     if (!appSettings.notionApiKey) {
       return (
         <div className="text-center">
-          <p className="text-slate-300 mb-4">Please add your Notion Integration Token in the Settings panel first.</p>
-          <button onClick={onClose} className="py-2 px-4 rounded-md text-white bg-white/10 hover:bg-white/20">Close</button>
+          <p className="text-slate-300 mb-6">Please add your Notion Integration Token in the Settings panel first.</p>
+          <button onClick={onClose} className="py-2 px-4 rounded-lg font-semibold text-white bg-slate-700 hover:bg-slate-600">Close</button>
         </div>
       );
     }
@@ -57,23 +57,23 @@ const ExportToNotionModal: React.FC<ExportToNotionModalProps> = ({ isOpen, onClo
       case 'exporting':
         return (
           <div className="flex flex-col items-center justify-center text-center h-40">
-            <Spinner className="w-10 h-10 text-[rgba(var(--primary-rgb),1)]" />
-            <p className="mt-4 text-slate-300">Exporting to Notion...</p>
+            <Spinner className="w-10 h-10 text-sky-500" />
+            <p className="mt-4 text-slate-300 text-lg">Exporting to Notion...</p>
             <p className="text-sm text-slate-400">This may take a moment for large outlines.</p>
           </div>
         );
       case 'success':
         return (
           <div className="text-center">
-            <div className="w-12 h-12 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircleIcon className="w-8 h-8" />
+            <div className="w-16 h-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircleIcon className="w-10 h-10" />
             </div>
-            <p className="text-slate-200 font-semibold mb-4">Successfully exported!</p>
+            <p className="text-slate-200 font-semibold mb-6 text-lg">Successfully exported!</p>
             <div className="flex flex-col sm:flex-row gap-3">
-              <a href={newPageUrl} target="_blank" rel="noopener noreferrer" className="flex-1 text-center bg-[rgba(var(--primary-rgb),1)] text-white font-bold py-2 px-4 rounded-lg hover:bg-[rgba(var(--primary-rgb),0.8)] transition-colors">
+              <a href={newPageUrl} target="_blank" rel="noopener noreferrer" className="flex-1 text-center bg-sky-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-sky-600 transition-colors">
                 View in Notion
               </a>
-              <button onClick={onClose} className="flex-1 bg-white/10 text-white font-semibold py-2 px-4 rounded-md hover:bg-white/20 transition-colors">
+              <button onClick={onClose} className="flex-1 bg-slate-700 text-white font-semibold py-3 px-4 rounded-lg hover:bg-slate-600 transition-colors">
                 Done
               </button>
             </div>
@@ -82,8 +82,8 @@ const ExportToNotionModal: React.FC<ExportToNotionModalProps> = ({ isOpen, onClo
       case 'error':
         return (
           <div>
-            <p className="text-red-300 bg-red-500/20 p-3 rounded-lg mb-4 text-sm">{errorMessage}</p>
-            <button onClick={() => setStatus('idle')} className="w-full p-2 bg-white/10 text-white font-semibold rounded-lg hover:bg-white/20 transition-colors">
+            <p className="text-red-300 bg-red-500/10 p-3 rounded-lg mb-4 text-sm border border-red-500/30">{errorMessage}</p>
+            <button onClick={() => setStatus('idle')} className="w-full p-2 bg-slate-700 text-white font-semibold rounded-lg hover:bg-slate-600 transition-colors">
               Try Again
             </button>
           </div>
@@ -92,25 +92,25 @@ const ExportToNotionModal: React.FC<ExportToNotionModalProps> = ({ isOpen, onClo
       default:
         return (
           <div>
-            <p className="text-slate-300 mb-4">A new page titled "<strong className="text-white">{outline?.title}</strong>" will be created inside the Notion page you select.</p>
+            <p className="text-slate-300 mb-6">A new page titled "<strong className="text-white">{outline?.title}</strong>" will be created inside the Notion page you provide.</p>
             <div>
-              <label className="block mb-2 text-sm font-semibold text-slate-300">Notion Parent Page Link</label>
+              <label className="block mb-2 text-base font-semibold text-slate-300">Notion Parent Page Link</label>
               <input 
                 type="url" 
                 value={parentPageUrl}
                 onChange={(e) => setParentPageUrl(e.target.value)}
                 placeholder="https://www.notion.so/your/page-url..."
-                className="w-full p-2 bg-slate-800 border border-slate-600 rounded-md focus:ring-[rgba(var(--primary-rgb),1)] focus:border-[rgba(var(--primary-rgb),1)]"
+                className="w-full p-3 bg-slate-800 border border-slate-700 rounded-lg focus:ring-sky-500 focus:border-sky-500"
               />
             </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={onClose} className="py-2 px-4 rounded-md text-white bg-white/10 hover:bg-white/20">Cancel</button>
+            <div className="flex justify-end gap-3 mt-8">
+              <button onClick={onClose} className="py-2 px-4 rounded-lg font-semibold text-white bg-slate-700 hover:bg-slate-600">Cancel</button>
               <button 
                 onClick={handleExport}
                 disabled={!parentPageUrl.trim()}
-                className="flex items-center gap-2 py-2 px-4 rounded-md text-white bg-[#191919] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 py-2 px-4 rounded-lg font-semibold text-white bg-[#191919] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <NotionIcon className="w-4 h-4" />
+                <NotionIcon className="w-5 h-5" />
                 Export to Notion
               </button>
             </div>

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import XIcon from '../icons/XIcon';
-import TrashIcon from '../icons/TrashIcon'; // Assuming TrashIcon can be used here
+import TrashIcon from '../icons/TrashIcon';
 
 interface ModalProps {
   isOpen: boolean;
@@ -9,9 +9,11 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   titleIcon?: 'delete';
+  backdrop?: boolean;
+  variant?: 'glass' | 'solid';
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, titleIcon }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, titleIcon, backdrop = true, variant = 'glass' }) => {
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
 
   const handleClose = React.useCallback(() => {
@@ -44,27 +46,35 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, titleIc
     }
     return null;
   }
+  
+  const backdropAnimation = isAnimatingOut ? 'animate-fade-out' : 'modal-backdrop-animate';
+  const panelAnimation = isAnimatingOut ? 'animate-scale-out' : 'modal-panel-animate';
+  const panelClass = variant === 'solid' ? 'solid-card-panel' : 'glass-panel';
+  
+  const panelContent = (
+    <div 
+      className={`${panelClass} w-full max-w-lg rounded-2xl p-8 shadow-2xl ${panelAnimation} ${backdrop ? '' : 'pointer-events-auto'}`}
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center">
+          {renderTitleIcon()}
+          <h2 className="text-2xl font-bold text-white">{title}</h2>
+        </div>
+        <button onClick={handleClose} className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-full">
+          <XIcon className="w-6 h-6" />
+        </button>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
 
   return (
     <div 
-        className={`fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 ${isAnimatingOut ? 'animate-fadeOut' : 'animate-fadeIn'}`}
-        onClick={handleClose}
+        className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${backdrop ? 'bg-slate-950/70' : 'pointer-events-none'} ${backdropAnimation}`}
+        onClick={backdrop ? handleClose : undefined}
     >
-      <div 
-        className={`glass-panel w-full max-w-md rounded-xl p-6 shadow-2xl ${isAnimatingOut ? 'animate-zoomOut' : 'animate-zoomIn'}`}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center">
-            {renderTitleIcon()}
-            <h2 className="text-xl font-bold text-white">{title}</h2>
-          </div>
-          <button onClick={handleClose} className="p-1 text-slate-400 hover:text-white hover:bg-white/20 rounded-full transition-all duration-200 hover:scale-110 active:scale-100">
-            <XIcon className="w-6 h-6" />
-          </button>
-        </div>
-        <div>{children}</div>
-      </div>
+      {panelContent}
     </div>
   );
 };
