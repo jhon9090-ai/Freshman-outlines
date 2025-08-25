@@ -110,7 +110,7 @@ const InputPanel: React.FC<MainViewProps> = ({ onGenerate, status, error, onClea
     <>
       <div className="w-full max-w-2xl mx-auto glass-panel shadow-2xl overflow-hidden">
         {/* File Upload Area */}
-        <div className="relative p-8 text-center border-b-2 border-dashed border-slate-800 hover:border-sky-500 transition-all duration-300 bg-slate-900/20">
+        <div className="relative p-6 sm:p-8 text-center border-b-2 border-dashed border-slate-800 hover:border-sky-500 transition-all duration-300 bg-slate-900/20">
           <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleFileChange} accept=".pdf,.txt,.md" disabled={status === 'loading' || isFileReading}/>
           <div className="text-slate-400 pointer-events-none flex flex-col items-center justify-center gap-3">
             <FileTextIcon className="w-12 h-12 text-slate-500" />
@@ -127,7 +127,7 @@ const InputPanel: React.FC<MainViewProps> = ({ onGenerate, status, error, onClea
         </div>
 
         {/* Main Content Area */}
-        <div className="p-8 space-y-6">
+        <div className="p-6 sm:p-8 space-y-6">
           <div>
             <label className="block mb-2 text-base font-semibold text-slate-300">Topic or Subject Name</label>
             <input 

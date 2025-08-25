@@ -42,14 +42,14 @@ const OutlineCard: React.FC<{
 
   return (
     <div className="glass-panel rounded-2xl p-6 flex flex-col transition-all hover:border-sky-500/50">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-xl text-white truncate">{outline.title}</h3>
           <p className="text-base text-slate-400">
             {outline.subject} &bull; Created on {new Date(outline.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0 self-end sm:self-start">
           <button onClick={onDownload} title="Download PDF" className="p-2 text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 rounded-lg transition-all"><DownloadIcon className="w-5 h-5"/></button>
           <button onClick={onExport} title="Export to Notion" className="p-2 text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 rounded-lg transition-all"><NotionIcon className="w-5 h-5"/></button>
           <button onClick={onRename} title="Rename" className="p-2 text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 rounded-lg transition-all"><EditIcon className="w-5 h-5"/></button>
@@ -188,7 +188,7 @@ const Dashboard: React.FC<DashboardProps> = ({ outlines, onSelectOutline, onDele
                 onToggle={(e) => handleToggleFolder(subject, (e.currentTarget as HTMLDetailsElement).open)}
               >
                 <summary 
-                  className="p-6 font-semibold text-2xl cursor-pointer flex items-center gap-4 list-none"
+                  className="p-6 font-semibold text-xl sm:text-2xl cursor-pointer flex items-center gap-4 list-none"
                 >
                   <FolderIcon className="w-8 h-8 text-sky-400"/>
                   {subject}

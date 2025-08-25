@@ -1,5 +1,6 @@
 import React from 'react';
 import EditableText from './EditableText';
+import TrashIcon from '../icons/TrashIcon';
 
 interface CheckboxProps {
   label: string;
@@ -7,6 +8,7 @@ interface CheckboxProps {
   onToggle: () => void;
   onLabelSave: (newLabel: string) => void;
   isEditable?: boolean;
+  onDelete?: () => void;
 }
 
 const CheckmarkIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -16,9 +18,9 @@ const CheckmarkIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 
-const Checkbox: React.FC<CheckboxProps> = ({ label, isChecked, onToggle, onLabelSave, isEditable = true }) => {
+const Checkbox: React.FC<CheckboxProps> = ({ label, isChecked, onToggle, onLabelSave, isEditable = true, onDelete }) => {
   return (
-    <div className="flex items-start gap-4 group">
+    <div className="flex items-start gap-3 group">
       <button
         type="button"
         onClick={onToggle}
@@ -39,9 +41,18 @@ const Checkbox: React.FC<CheckboxProps> = ({ label, isChecked, onToggle, onLabel
         onSave={onLabelSave}
         Tag="div"
         isEditable={isEditable}
-        className={`w-full text-slate-300 transition-colors text-lg ${isChecked ? 'text-slate-500 line-through' : ''}`}
+        className={`flex-1 text-slate-300 transition-colors text-lg ${isChecked ? 'text-slate-500 line-through' : ''}`}
         inputClassName="text-lg"
       />
+      {isEditable && onDelete && (
+          <button 
+              onClick={onDelete} 
+              className="p-1 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" 
+              title="Delete objective"
+          >
+              <TrashIcon className="w-4 h-4" />
+          </button>
+      )}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import XIcon from '../icons/XIcon';
 import TrashIcon from '../icons/TrashIcon';
@@ -53,7 +54,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, titleIc
   
   const panelContent = (
     <div 
-      className={`${panelClass} w-full max-w-lg rounded-2xl p-8 shadow-2xl ${panelAnimation} ${backdrop ? '' : 'pointer-events-auto'}`}
+      className={`${panelClass} w-full max-w-lg rounded-2xl p-6 sm:p-8 shadow-2xl ${panelAnimation} ${backdrop ? '' : 'pointer-events-auto'}`}
       onClick={e => e.stopPropagation()}
     >
       <div className="flex justify-between items-center mb-6">

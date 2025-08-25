@@ -376,8 +376,8 @@ export const generateCompletionMentoring = async (outline: StudyOutline, appSett
 
     try {
         const generatePromise = ai.models.generateContent({ model, contents: prompt, config: { systemInstruction } });
-        const response: GenerateContentResponse = await withTimeout(generatePromise, 15000, 'generate mentor feedback');
-        return response.text;
+        const response = await withTimeout(generatePromise, 15000, 'generate mentor feedback');
+        return (response as GenerateContentResponse).text;
     } catch (error) {
         console.error("Error generating mentor feedback:", error);
         // Don't block user flow for this non-critical feature
@@ -498,7 +498,7 @@ Your task is to apply the command to the outline and return the COMPLETE, UPDATE
       },
     });
 
-    const response = await withTimeout(generatePromise, 90000, 'restructure outline');
+    const response: GenerateContentResponse = await withTimeout(generatePromise, 90000, 'restructure outline');
 
     const rawText = response.text.trim();
     if (!rawText) {

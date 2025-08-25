@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline } from './types';
 import { generateStudyOutline } from './services/geminiService';
@@ -62,19 +63,17 @@ const BottomNavBar: React.FC<{
   onSettingsClick: () => void;
 }> = ({ currentView, onViewChange, onSettingsClick }) => {
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-      <div className="glass-panel rounded-full p-2 flex items-center gap-2 shadow-2xl">
-        <NavButton viewId="curriculum" currentView={currentView} onClick={onViewChange} icon={<BookOpenIcon className="w-6 h-6" />} />
-        <NavButton viewId="create" currentView={currentView} onClick={onViewChange} icon={<ZapIcon className="w-6 h-6" />} />
-        <NavButton viewId="outlines" currentView={currentView} onClick={onViewChange} icon={<BookmarkIcon className="w-6 h-6" />} />
-        <div className="w-px h-8 bg-white/10 mx-2"></div>
-        <button
-          onClick={onSettingsClick}
-          className="relative flex items-center justify-center h-12 w-12 rounded-full transition-all text-slate-400 hover:text-white"
-        >
-          <SettingsIcon className="w-6 h-6" />
-        </button>
-      </div>
+    <div className="glass-panel rounded-full p-2 flex items-center gap-2 shadow-2xl">
+      <NavButton viewId="curriculum" currentView={currentView} onClick={onViewChange} icon={<BookOpenIcon className="w-6 h-6" />} />
+      <NavButton viewId="create" currentView={currentView} onClick={onViewChange} icon={<ZapIcon className="w-6 h-6" />} />
+      <NavButton viewId="outlines" currentView={currentView} onClick={onViewChange} icon={<BookmarkIcon className="w-6 h-6" />} />
+      <div className="w-px h-8 bg-white/10 mx-2"></div>
+      <button
+        onClick={onSettingsClick}
+        className="relative flex items-center justify-center h-12 w-12 rounded-full transition-all text-slate-400 hover:text-white"
+      >
+        <SettingsIcon className="w-6 h-6" />
+      </button>
     </div>
   );
 };
@@ -126,6 +125,9 @@ export default function App(): React.ReactNode {
       return defaultSettings;
   });
 
+  const [isNavBarVisible, setIsNavBarVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
   // Effect to persist outlines to localStorage
   useEffect(() => {
     try {
@@ -156,6 +158,44 @@ export default function App(): React.ReactNode {
         }
     }
   }, [outlines, activeOutline]);
+
+  const handleScroll = useCallback((e: Event) => {
+    const target = e.target as HTMLElement;
+    if (!target) return;
+    
+    const currentScrollY = target.scrollTop;
+    const scrollThreshold = 100;
+
+    // Show if scrolling up OR if scrolled back to top
+    if (currentScrollY < lastScrollY.current || currentScrollY <= scrollThreshold) {
+        setIsNavBarVisible(true);
+    }
+    // Hide if scrolling down AND past the threshold
+    else if (currentScrollY > lastScrollY.current && currentScrollY > scrollThreshold) {
+        setIsNavBarVisible(false);
+    }
+    
+    lastScrollY.current = currentScrollY <= 0 ? 0 : currentScrollY;
+  }, []);
+
+  useEffect(() => {
+    if (view === 'study') {
+      return; // The nav bar is always hidden in study view, no listener needed.
+    }
+
+    const scrollContainer = document.querySelector('.view-is-active .overflow-y-auto');
+    
+    if (scrollContainer) {
+        lastScrollY.current = scrollContainer.scrollTop;
+        setIsNavBarVisible(true); // Always show on view change
+        
+        scrollContainer.addEventListener('scroll', handleScroll);
+        
+        return () => {
+            scrollContainer.removeEventListener('scroll', handleScroll);
+        };
+    }
+  }, [view, handleScroll]);
 
   const handleGenerate = useCallback(async (generationInput: string, title: string, advancedSettings: AdvancedSettings, isTheme: boolean = false, curriculumSource?: CurriculumSource) => {
     setPreviousView(view);
@@ -299,77 +339,149 @@ export default function App(): React.ReactNode {
   const handleAddOutlineItem = useCallback((
       outlineId: string,
       type: 'mainTopic' | 'subtopic' | 'objective',
-      path: ItemPath
+      path: ItemPath,
+      options?: { afterId?: string }
   ) => {
       setOutlines(prev => prev.map(outline => {
           if (outline.id !== outlineId) return outline;
 
-          const newOutline = { ...outline };
+          const newOutline = JSON.parse(JSON.stringify(outline)); // Deep copy
 
-          // --- ADD MAIN TOPIC ---
-          if (type === 'mainTopic') {
-              const newMainTopic: MainTopic = { id: `main-${Date.now()}`, title: 'New Main Topic', subtopics: [] };
-              if (newOutline.isThemeOutline && path.unitId) {
-                  newOutline.units = (newOutline.units || []).map((unit: UnitOutline) => {
-                      if (unit.id !== path.unitId) return unit;
-                      return { ...unit, mainTopics: [...unit.mainTopics, newMainTopic] };
-                  });
-              } else {
-                  newOutline.mainTopics = [...(newOutline.mainTopics || []), newMainTopic];
-              }
-              return newOutline;
+          const newMainTopic: MainTopic = { id: `main-${Date.now()}`, title: 'New Main Topic', subtopics: [] };
+          const newSubTopic: SubTopic = { id: `sub-${Date.now()}`, title: 'New Subtopic', learningObjectives: [] };
+          const newObjective: LearningObjective = { id: `obj-${Date.now()}`, text: 'New Learning Objective' };
+
+          let targetMainTopics: MainTopic[] | undefined;
+          if (newOutline.isThemeOutline && path.unitId) {
+              const unit = (newOutline.units as UnitOutline[] | undefined)?.find(u => u.id === path.unitId);
+              targetMainTopics = unit?.mainTopics;
+          } else {
+              targetMainTopics = newOutline.mainTopics;
           }
 
-          // --- ADD SUBTOPIC ---
-          if (type === 'subtopic' && path.mainTopicId) {
-              const newSubTopic: SubTopic = { id: `sub-${Date.now()}`, title: 'New Subtopic', learningObjectives: [] };
-              const updateMainTopics = (topics: MainTopic[]): MainTopic[] =>
-                  topics.map(mt => {
-                      if (mt.id !== path.mainTopicId) return mt;
-                      return { ...mt, subtopics: [...mt.subtopics, newSubTopic] };
-                  });
+          if (!targetMainTopics) return outline; // Should not happen
+
+          switch (type) {
+              case 'mainTopic':
+                  if (options?.afterId) {
+                      const index = targetMainTopics.findIndex(mt => mt.id === options.afterId);
+                      if (index > -1) {
+                          targetMainTopics.splice(index + 1, 0, newMainTopic);
+                      } else {
+                          targetMainTopics.push(newMainTopic);
+                      }
+                  } else {
+                      targetMainTopics.push(newMainTopic);
+                  }
+                  break;
               
-              if (newOutline.isThemeOutline && path.unitId) {
-                  newOutline.units = (newOutline.units || []).map(unit => {
-                      if (unit.id !== path.unitId) return unit;
-                      return { ...unit, mainTopics: updateMainTopics(unit.mainTopics) };
-                  });
-              } else {
-                  newOutline.mainTopics = updateMainTopics(newOutline.mainTopics || []);
-              }
-              return newOutline;
+              case 'subtopic':
+                  if (path.mainTopicId) {
+                      const mainTopic = targetMainTopics.find(mt => mt.id === path.mainTopicId);
+                      if (mainTopic) mainTopic.subtopics.push(newSubTopic);
+                  }
+                  break;
+              
+              case 'objective':
+                  if (path.mainTopicId && path.subtopicId) {
+                      const mainTopic = targetMainTopics.find(mt => mt.id === path.mainTopicId);
+                      const subTopic = mainTopic?.subtopics.find(st => st.id === path.subtopicId);
+                      if (subTopic) subTopic.learningObjectives.push(newObjective);
+                  }
+                  break;
           }
-
-          // --- ADD OBJECTIVE ---
-          if (type === 'objective' && path.mainTopicId && path.subtopicId) {
-              const newObjective: LearningObjective = { id: `obj-${Date.now()}`, text: 'New Learning Objective' };
-              const updateMainTopics = (topics: MainTopic[]): MainTopic[] =>
-                  topics.map(mt => {
-                      if (mt.id !== path.mainTopicId) return mt;
-                      return {
-                          ...mt,
-                          subtopics: mt.subtopics.map(st => {
-                              if (st.id !== path.subtopicId) return st;
-                              return { ...st, learningObjectives: [...st.learningObjectives, newObjective] };
-                          })
-                      };
-                  });
-
-              if (newOutline.isThemeOutline && path.unitId) {
-                   newOutline.units = (newOutline.units || []).map(unit => {
-                      if (unit.id !== path.unitId) return unit;
-                      return { ...unit, mainTopics: updateMainTopics(unit.mainTopics) };
-                  });
-              } else {
-                   newOutline.mainTopics = updateMainTopics(newOutline.mainTopics || []);
-              }
-              return newOutline;
-          }
-
-          return outline; // Should not be reached
+          
+          return newOutline;
       }));
   }, []);
   
+  const handleDeleteOutlineItem = useCallback((outlineId: string, path: ItemPath) => {
+    setOutlines(prev => prev.map(outline => {
+        if (outline.id !== outlineId) return outline;
+        
+        const newOutline = JSON.parse(JSON.stringify(outline));
+
+        let topicsList: MainTopic[] | undefined;
+        if (newOutline.isThemeOutline && path.unitId) {
+            const unit = (newOutline.units as UnitOutline[] | undefined)?.find(u => u.id === path.unitId);
+            topicsList = unit?.mainTopics;
+        } else {
+            topicsList = newOutline.mainTopics;
+        }
+
+        if (!topicsList) return outline;
+
+        if (path.mainTopicId && !path.subtopicId) { // Delete Main Topic
+            const newTopics = topicsList.filter(mt => mt.id !== path.mainTopicId);
+            if (newOutline.isThemeOutline && path.unitId) {
+                const unit = (newOutline.units as UnitOutline[]).find(u => u.id === path.unitId)!;
+                unit.mainTopics = newTopics;
+            } else {
+                newOutline.mainTopics = newTopics;
+            }
+            return newOutline;
+        }
+
+        const mainTopic = topicsList.find(mt => mt.id === path.mainTopicId);
+        if (!mainTopic) return outline;
+
+        if (path.subtopicId && !path.objectiveId) { // Delete Subtopic
+            mainTopic.subtopics = mainTopic.subtopics.filter(st => st.id !== path.subtopicId);
+            return newOutline;
+        }
+
+        if (path.objectiveId) { // Delete Objective
+            const subTopic = mainTopic.subtopics.find(st => st.id === path.subtopicId);
+            if (subTopic) {
+                subTopic.learningObjectives = subTopic.learningObjectives.filter(obj => obj.id !== path.objectiveId);
+            }
+            return newOutline;
+        }
+        
+        return outline; // Fallback
+    }));
+  }, []);
+
+  const handleReorderOutlineItem = useCallback((
+    outlineId: string,
+    source: { index: number; parentPath: ItemPath, type: string },
+    destination: { index: number; parentPath: ItemPath, type: string }
+  ) => {
+    // Only support reordering within the same parent list
+    if (JSON.stringify(source.parentPath) !== JSON.stringify(destination.parentPath)) return;
+
+    setOutlines(prev => prev.map(outline => {
+        if (outline.id !== outlineId) return outline;
+
+        const newOutline = JSON.parse(JSON.stringify(outline));
+        let list: any[] | undefined;
+        
+        let topicsList = newOutline.mainTopics || [];
+        if (newOutline.isThemeOutline && source.parentPath.unitId) {
+            const unit = (newOutline.units as UnitOutline[])?.find(u => u.id === source.parentPath.unitId);
+            topicsList = unit?.mainTopics || [];
+        }
+
+        if (source.type === 'objective') {
+            const mainTopic = topicsList.find(mt => mt.id === source.parentPath.mainTopicId);
+            const subTopic = mainTopic?.subtopics.find(st => st.id === source.parentPath.subtopicId);
+            list = subTopic?.learningObjectives;
+        } else if (source.type === 'subtopic') {
+            const mainTopic = topicsList.find(mt => mt.id === source.parentPath.mainTopicId);
+            list = mainTopic?.subtopics;
+        } else if (source.type === 'mainTopic') {
+            list = topicsList;
+        }
+
+        if (list) {
+            const [removed] = list.splice(source.index, 1);
+            list.splice(destination.index, 0, removed);
+        }
+        
+        return newOutline;
+    }));
+  }, []);
+
   const handleUpdateOutline = useCallback((
     outlineId: string,
     newOutlineData: Partial<StudyOutline>
@@ -423,6 +535,8 @@ export default function App(): React.ReactNode {
               onUpdateProgress={handleUpdateProgress}
               onUpdateItem={handleUpdateOutlineItem}
               onAddItem={handleAddOutlineItem}
+              onDeleteItem={handleDeleteOutlineItem}
+              onReorderItem={handleReorderOutlineItem}
               onUpdateOutline={handleUpdateOutline}
             />
         </div>
@@ -470,7 +584,7 @@ export default function App(): React.ReactNode {
         <div className="flex flex-col items-center justify-start w-full h-full p-4 md:p-8 overflow-x-hidden">
             <div className={`w-full max-w-5xl h-full flex flex-col transition-all duration-300 ${selectedSubjectKey && view === 'curriculum' ? 'max-w-full' : ''}`}>
                  <header className={`transition-all duration-500 ease-in-out overflow-hidden ${view === 'study' ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'}`}>
-                    <div className="w-full text-center mb-12">
+                    <div className="w-full text-center mb-4 md:mb-12">
                         <h1 className="text-4xl lg:text-5xl font-bold text-white bg-gradient-to-b from-white to-slate-400 text-transparent bg-clip-text">
                           Intelligent Outlines
                         </h1>
@@ -512,10 +626,12 @@ export default function App(): React.ReactNode {
     );
   }
   
+  const isNavBarHidden = view === 'study' || !isNavBarVisible;
+
   return (
     <div className={`h-screen w-screen text-slate-300 antialiased overflow-hidden`}>
         {renderContent()}
-        <div className={`transition-all duration-300 ease-in-out ${view === 'study' ? 'opacity-0 -bottom-20 pointer-events-none' : 'opacity-100 bottom-6'}`}>
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 ease-in-out ${isNavBarHidden ? 'opacity-0 translate-y-24 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
           <BottomNavBar
             currentView={view}
             onViewChange={handleNavChange}

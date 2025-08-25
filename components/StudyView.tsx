@@ -22,7 +22,9 @@ interface StudyViewProps {
   onUpdateProgress: (objectiveId: string, isComplete: boolean) => void;
   appSettings: AppSettings;
   onUpdateItem: (outlineId: string, path: ItemPath, newText: string) => void;
-  onAddItem: (outlineId: string, type: 'mainTopic' | 'subtopic' | 'objective', path: ItemPath) => void;
+  onAddItem: (outlineId: string, type: 'mainTopic' | 'subtopic' | 'objective', path: ItemPath, options?: { afterId?: string }) => void;
+  onDeleteItem: (outlineId: string, path: ItemPath) => void;
+  onReorderItem: (outlineId: string, source: { index: number; parentPath: ItemPath; type: string; }, destination: { index: number; parentPath: ItemPath, type: string }) => void;
   onUpdateOutline: (outlineId: string, newOutlineData: PartialStudyOutline) => void;
 }
 
@@ -52,7 +54,7 @@ const UnitLevelNode: React.FC<{
 };
 
 
-const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress, appSettings, onUpdateItem, onAddItem, onUpdateOutline }) => {
+const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress, appSettings, onUpdateItem, onAddItem, onDeleteItem, onReorderItem, onUpdateOutline }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revisionScreen, setRevisionScreen] = useState<RevisionSection | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -183,6 +185,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
           animationClass={cardAnimation}
           onUpdateItem={(path, newText) => onUpdateItem(outline.id, { unitId: selectedUnit?.id, ...path }, newText)}
           onAddItem={(type, path) => onAddItem(outline.id, type, { unitId: selectedUnit?.id, ...path })}
+          onDeleteItem={(path) => onDeleteItem(outline.id, { unitId: selectedUnit?.id, ...path })}
           isEditing={isEditing}
         />
       );
@@ -209,7 +212,14 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   }
   
   const handleAddMainTopic = () => {
-    onAddItem(outline.id, 'mainTopic', { unitId: selectedUnit?.id });
+    const currentCard = studyCards[currentIndex];
+    let afterId: string | undefined = undefined;
+
+    if (currentCard?.type === 'maintopic') {
+        afterId = currentCard.data.id;
+    }
+    
+    onAddItem(outline.id, 'mainTopic', { unitId: selectedUnit?.id }, { afterId });
   };
 
 
@@ -242,20 +252,20 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   );
   
   const renderUnitSelectionView = () => (
-    <div key="unit-selection" className="flex flex-col h-full w-full p-8 animate-fadeInUp">
+    <div key="unit-selection" className="flex flex-col h-full w-full p-4 sm:p-6 md:p-8 animate-fadeInUp">
         <header className="flex-shrink-0 mb-8">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col gap-4 sm:flex-row sm:justify-between items-start">
             <button onClick={onBack} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors">
               <ArrowLeftIcon className="w-5 h-5" /> Back to Main
             </button>
-            <div className="text-right w-2/3">
+            <div className="text-left sm:text-right w-full sm:w-2/3">
               <EditableText 
                   Tag="h1"
                   initialValue={outline.title}
                   onSave={(newText) => onUpdateItem(outline.id, {}, newText)}
                   isEditable={false} // Title not editable in this view
-                  className="text-4xl font-bold text-white truncate"
-                  inputClassName="text-4xl font-bold"
+                  className="text-3xl md:text-4xl font-bold text-white truncate"
+                  inputClassName="text-3xl md:text-4xl font-bold"
               />
               <p className="text-slate-400 text-lg">{outline.subject}</p>
             </div>
@@ -297,27 +307,30 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   const currentCard = studyCards[currentIndex];
 
   const renderStudyContentView = () => (
-    <div key={selectedUnit ? selectedUnit.id : 'main-outline'} className="flex flex-col h-full w-full p-8 animate-fadeIn relative">
-      <header className="flex-shrink-0 mb-6 relative">
-        <div className="flex justify-between items-center">
-          <button onClick={handleBackAction} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors z-10">
-            <ArrowLeftIcon className="w-5 h-5" /> {selectedUnit ? `Back to Theme` : 'Back to Main'}
+    <div key={selectedUnit ? selectedUnit.id : 'main-outline'} className="flex flex-col h-full w-full p-4 sm:p-6 md:p-8 animate-fadeIn relative">
+      <header className="flex-shrink-0 mb-4 relative">
+        <div className="flex flex-wrap items-center justify-between gap-y-4">
+          <button onClick={handleBackAction} className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors order-1">
+            <ArrowLeftIcon className="w-5 h-5" />
+            <span className="hidden sm:inline">{selectedUnit ? `Back to Theme` : 'Back to Main'}</span>
           </button>
           
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 bg-slate-900/70 p-1.5 rounded-xl border border-slate-700">
-              <ViewToggleButton mode="card" icon={<CardViewIcon className="w-5 h-5"/>} />
-              <ViewToggleButton mode="gamified" icon={<PathIcon className="w-5 h-5"/>} />
-              <div className="w-px h-6 bg-slate-700 mx-1"></div>
-              <button 
-                onClick={() => setIsEditing(prev => !prev)}
-                className={`p-2 rounded-lg transition-all duration-200 ${isEditing ? 'bg-sky-500 text-white ring-2 ring-offset-2 ring-offset-slate-950 ring-sky-500' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'}`}
-                title={isEditing ? "Finish Editing" : "Edit Outline"}
-              >
-                <EditIcon className="w-5 h-5"/>
-              </button>
+          <div className="order-3 sm:order-2 w-full sm:w-auto flex justify-center">
+            <div className="flex items-center gap-2 bg-slate-900/70 p-1.5 rounded-xl border border-slate-700">
+                <ViewToggleButton mode="card" icon={<CardViewIcon className="w-5 h-5"/>} />
+                <ViewToggleButton mode="gamified" icon={<PathIcon className="w-5 h-5"/>} />
+                <div className="w-px h-6 bg-slate-700 mx-1"></div>
+                <button 
+                  onClick={() => setIsEditing(prev => !prev)}
+                  className={`p-2 rounded-lg transition-all duration-200 ${isEditing ? 'bg-sky-500 text-white ring-2 ring-offset-2 ring-offset-slate-950 ring-sky-500' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'}`}
+                  title={isEditing ? "Finish Editing" : "Edit Outline"}
+                >
+                  <EditIcon className="w-5 h-5"/>
+                </button>
+            </div>
           </div>
 
-          <div className="text-right w-1/3 z-10">
+          <div className="text-right order-2 sm:order-3">
             <EditableText 
                 Tag="h1"
                 initialValue={activeStudyData.title}
@@ -339,7 +352,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
         )}
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center overflow-hidden">
+      <main className="flex-1 flex flex-col items-center pt-4 md:pt-8 overflow-hidden">
         <div key={viewAnimationKey} className="w-full h-full view-container-animate">
           {viewMode === 'card' ? renderCardView() : (
             <GamifiedStudyView 
@@ -349,6 +362,8 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
               onRevisionSelect={handleRevisionSelect} 
               onUpdateItem={(path, newText) => onUpdateItem(outline.id, { unitId: selectedUnit?.id, ...path }, newText)}
               onAddItem={(type, path) => onAddItem(outline.id, type, { unitId: selectedUnit?.id, ...path })}
+              onDeleteItem={(path) => onDeleteItem(outline.id, { unitId: selectedUnit?.id, ...path })}
+              onReorderItem={(source, dest) => onReorderItem(outline.id, { ...source, parentPath: { unitId: selectedUnit?.id, ...source.parentPath }}, { ...dest, parentPath: { unitId: selectedUnit?.id, ...dest.parentPath }})}
               isEditing={isEditing}
             />
           )}
@@ -361,7 +376,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
 
 
       {viewMode === 'card' && (
-        <footer className="flex-shrink-0 flex flex-col items-center mt-6 w-full max-w-4xl mx-auto">
+        <footer className="flex-shrink-0 flex flex-col items-center pt-6 w-full max-w-4xl mx-auto">
             {isEditing && (
                 <button 
                     onClick={handleAddMainTopic}

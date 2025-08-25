@@ -141,7 +141,7 @@ const ThemeItem: React.FC<{
     }
 
     return (
-        <button onClick={() => onSelectTheme(theme)} className="w-full text-left p-6 glass-panel rounded-2xl hover:bg-sky-500/5 hover:border-sky-500/30 transition-all duration-300 flex justify-between items-center active:scale-[0.99]">
+        <button onClick={() => onSelectTheme(theme)} className="w-full text-left p-4 sm:p-6 glass-panel rounded-2xl hover:bg-sky-500/5 hover:border-sky-500/30 transition-all duration-300 flex justify-between items-center active:scale-[0.99]">
             <div><span className="font-semibold text-2xl text-slate-100">{theme.theme}</span>{theme.class && <span className="text-base font-normal text-slate-400 ml-3">({theme.class})</span>}</div>
             <div className="flex items-center gap-4">{themeProgress && <ProgressDisplay {...themeProgress} />}<ChevronRightIcon className="w-8 h-8 text-slate-500" /></div>
         </button>
@@ -366,7 +366,7 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
                 <button onClick={() => setSubjectView('list')} title="List View" className={`p-2 rounded-md transition-colors ${subjectView === 'list' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><ListIcon className="w-5 h-5"/></button>
             </div>
         </div>
-        <div className={`max-w-6xl mx-auto px-4 ${subjectView === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6' : 'space-y-3'}`}>
+        <div className={`max-w-6xl mx-auto px-4 ${subjectView === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6' : 'space-y-3'}`}>
             {SUBJECT_ORDER.map(key => {
                 const Icon = subjectIcons[key];
                 return subjectView === 'grid' ? (
@@ -394,7 +394,7 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
             <header className="flex-shrink-0 mb-6 flex justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
                     <button onClick={handleBackToSubjects} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full"><ArrowLeftIcon className="w-6 h-6"/></button>
-                    <h2 className="text-4xl font-bold text-slate-100">{subject.title}</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold text-slate-100">{subject.title}</h2>
                 </div>
                 <div className="flex bg-slate-900/70 p-1 rounded-lg border border-slate-700">
                     <button onClick={() => setThemeView('grid')} title="Grid View" className={`p-2 rounded-md transition-colors ${themeView === 'grid' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:bg-slate-800'}`}><GridIcon className="w-5 h-5"/></button>
@@ -417,7 +417,7 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
             <header className="flex-shrink-0 mb-6 flex items-center gap-4">
               <button onClick={handleBackToThemes} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full"><ArrowLeftIcon className="w-6 h-6"/></button>
               <div>
-                <h2 className="text-4xl font-bold text-slate-100">{selectedTheme.theme}</h2>
+                <h2 className="text-3xl md:text-4xl font-bold text-slate-100">{selectedTheme.theme}</h2>
                 {selectedTheme.class && <p className="text-lg text-slate-400">({selectedTheme.class})</p>}
               </div>
             </header>

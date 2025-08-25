@@ -24,54 +24,92 @@ const AiEditPanel: React.FC<AiEditPanelProps> = ({ onCommand }) => {
     const isDragging = useRef(false);
     const offset = useRef({ x: 0, y: 0 });
     
-    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (panelRef.current && (e.target as HTMLElement).classList.contains('cursor-grab')) {
+    const handleDragStart = (clientX: number, clientY: number) => {
+        if (panelRef.current) {
             isDragging.current = true;
             const rect = panelRef.current.getBoundingClientRect();
+            const parentRect = panelRef.current.parentElement?.getBoundingClientRect();
+            if (!parentRect) return;
+
+            // Calculate initial offset from the parent container's top-left, not the viewport
             offset.current = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
+                x: clientX - (rect.left - parentRect.left),
+                y: clientY - (rect.top - parentRect.top)
             };
             document.body.style.cursor = 'grabbing';
+        }
+    };
+    
+    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        if ((e.target as HTMLElement).classList.contains('cursor-grab')) {
+            handleDragStart(e.clientX, e.clientY);
             e.preventDefault();
         }
     };
 
-    const handleMouseMove = useCallback((e: MouseEvent) => {
+    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        if ((e.target as HTMLElement).classList.contains('cursor-grab')) {
+            handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    };
+    
+    const handleDragMove = useCallback((clientX: number, clientY: number) => {
         if (!isDragging.current || !panelRef.current) return;
         const parentRect = panelRef.current.parentElement?.getBoundingClientRect();
         if(!parentRect) return;
 
-        let newX = e.clientX - offset.current.x - parentRect.left;
-        let newY = e.clientY - offset.current.y - parentRect.top;
+        let newX = clientX - offset.current.x;
+        let newY = clientY - offset.current.y;
 
         setPosition({ x: newX, y: newY });
     }, []);
 
-    const handleMouseUp = useCallback(() => {
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (isDragging.current) handleDragMove(e.clientX, e.clientY);
+    }, [handleDragMove]);
+
+    const handleTouchMove = useCallback((e: TouchEvent) => {
+        if (isDragging.current) {
+            e.preventDefault(); // Prevent page scroll
+            handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    }, [handleDragMove]);
+
+    const handleDragEnd = useCallback(() => {
         if (isDragging.current) {
             isDragging.current = false;
             document.body.style.cursor = 'default';
         }
     }, []);
 
+
     useEffect(() => {
         const currentPanel = panelRef.current;
         if(currentPanel) {
-            currentPanel.style.transform = `translate(${position.x}px, ${position.y}px)`;
+             const parentRect = currentPanel.parentElement?.getBoundingClientRect();
+             if(!parentRect) return;
+             // Clamp position to stay within parent bounds
+             const newX = Math.max(0, Math.min(position.x, parentRect.width - currentPanel.offsetWidth));
+             const newY = Math.max(0, Math.min(position.y, parentRect.height - currentPanel.offsetHeight));
+            
+            currentPanel.style.transform = `translate(${newX}px, ${newY}px)`;
         }
     }, [position]);
 
     useEffect(() => {
         window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('mouseup', handleDragEnd);
+        window.addEventListener('touchmove', handleTouchMove, { passive: false });
+        window.addEventListener('touchend', handleDragEnd);
 
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('mouseup', handleDragEnd);
+            window.removeEventListener('touchmove', handleTouchMove);
+            window.removeEventListener('touchend', handleDragEnd);
             document.body.style.cursor = 'default';
         };
-    }, [handleMouseMove, handleMouseUp]);
+    }, [handleMouseMove, handleDragEnd, handleTouchMove]);
 
 
     const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,7 +184,7 @@ const AiEditPanel: React.FC<AiEditPanelProps> = ({ onCommand }) => {
     return (
         <div 
             ref={panelRef}
-            className="fixed bottom-8 left-1/2 w-full max-w-2xl px-4 z-40"
+            className="absolute bottom-8 left-1/2 w-full max-w-2xl px-4 z-40"
             style={{ transform: `translateX(-50%)` }}
         >
             <div 
@@ -157,6 +195,7 @@ const AiEditPanel: React.FC<AiEditPanelProps> = ({ onCommand }) => {
                 <div 
                     className="glass-panel backdrop-blur-md rounded-2xl shadow-2xl flex items-center p-2 cursor-grab active:cursor-grabbing"
                     onMouseDown={handleMouseDown}
+                    onTouchStart={handleTouchStart}
                 >
                     <form onSubmit={handleSubmit} className="flex items-center gap-2 w-full h-full">
                         <button 
@@ -177,7 +216,7 @@ const AiEditPanel: React.FC<AiEditPanelProps> = ({ onCommand }) => {
                             type="text"
                             value={command}
                             onChange={(e) => setCommand(e.target.value)}
-                            placeholder="Tell the AI what to change... (Ctrl+Shift+X to toggle)"
+                            placeholder="Tell the AI what to change..."
                             className="w-full h-full bg-transparent focus:outline-none text-white placeholder-slate-400 px-2 text-lg"
                             disabled={isLoading || isReadingFile}
                         />
