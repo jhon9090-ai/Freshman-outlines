@@ -69,6 +69,7 @@ const mainTopicSchema = {
     required: ["title", "subtopics"],
     properties: {
       title: { type: Type.STRING, description: "The concise title of the main topic." },
+      studyDuration: { type: Type.INTEGER, description: "An estimated time in minutes required to study this main topic thoroughly, based on its complexity. For example: 60 for one hour." },
       subtopics: {
         type: Type.ARRAY,
         description: "A list of detailed subtopics. Each subtopic is a focused learning unit.",
@@ -194,8 +195,9 @@ const getCommonInstructions = (settings: AdvancedSettings) => `
     - Then, for EVERY subtopic, ensure there are AT LEAST TWO concrete, actionable learning objectives.
     - Generate your own high-quality objectives where needed. Good objectives start with verbs like "Define," "Calculate," "Explain," "Apply." Avoid vague objectives like "Understand X."
 4.  **Structure:** The final output must be a clear hierarchy: Main Topics > Subtopics > Learning Objectives.
-5.  **Revision Assistant:** Generate a comprehensive revision assistant. Include actionable focus areas, 10-15 MCQs, ALL key definitions, and interesting quick facts.
-6.  **JSON Output:** Respond ONLY with a valid JSON object matching the schema.
+5.  **Study Duration:** For each Main Topic, you MUST provide a realistic 'studyDuration' in minutes. Base this on the content's depth and complexity. If generating from scratch, provide a reasonable estimate (e.g., 45, 60, 90).
+6.  **Revision Assistant:** Generate a comprehensive revision assistant. Include actionable focus areas, 10-15 MCQs, ALL key definitions, and interesting quick facts.
+7.  **JSON Output:** Respond ONLY with a valid JSON object matching the schema.
 
 **User Preferences:**
 - Depth: ${settings.outlineDepth}
@@ -313,6 +315,7 @@ export const generateStudyOutline = async (
         return (topics || []).map((topic: any, topicIndex: number): MainTopic => ({
             id: `${baseId}-main-${topicIndex}`,
             title: topic.title || 'Untitled Topic',
+            studyDuration: topic.studyDuration,
             subtopics: (topic.subtopics || []).map((sub: any, subIndex: number): SubTopic => ({
                 id: `${baseId}-main-${topicIndex}-sub-${subIndex}`,
                 title: sub.title || 'Untitled Subtopic',

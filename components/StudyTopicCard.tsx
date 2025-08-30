@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { MainTopic, LearningObjective, SubTopic } from '../types';
 import { ItemPath } from '../App';
@@ -7,6 +6,7 @@ import EditableText from './ui/EditableText';
 import PlusCircleIcon from './icons/PlusCircleIcon';
 import TrashIcon from './icons/TrashIcon';
 import TimerIcon from './icons/TimerIcon';
+import PlayIcon from './icons/PlayIcon';
 
 interface SubtopicAccordionProps {
   subtopic: SubTopic;
@@ -91,6 +91,7 @@ interface MainTopicCardProps {
   onDeleteItem: (path: ItemPath) => void;
   isEditing: boolean;
   onOpenTimerModal: (topic: MainTopic) => void;
+  onStartSession: (topicId: string, duration: number, title: string) => void;
 }
 
 const formatDuration = (totalMinutes: number) => {
@@ -103,7 +104,7 @@ const formatDuration = (totalMinutes: number) => {
     return result.trim();
 };
 
-const MainTopicCard: React.FC<MainTopicCardProps> = ({ mainTopic, completedObjectives, onToggleObjective, isEmbedded = false, animationClass = '', onUpdateItem, onAddItem, onDeleteItem, isEditing, onOpenTimerModal }) => {
+const MainTopicCard: React.FC<MainTopicCardProps> = ({ mainTopic, completedObjectives, onToggleObjective, isEmbedded = false, animationClass = '', onUpdateItem, onAddItem, onDeleteItem, isEditing, onOpenTimerModal, onStartSession }) => {
   
   const content = (
     <>
@@ -136,9 +137,18 @@ const MainTopicCard: React.FC<MainTopicCardProps> = ({ mainTopic, completedObjec
                     >
                         <TimerIcon className="w-4 h-4" />
                         <span className="text-sm font-medium">
-                            {mainTopic.studyDuration ? formatDuration(mainTopic.studyDuration) : null}
+                            {mainTopic.studyDuration ? formatDuration(mainTopic.studyDuration) : 'Set Time'}
                         </span>
                     </button>
+                    {mainTopic.studyDuration && mainTopic.studyDuration > 0 && !isEditing && (
+                        <button
+                            onClick={() => onStartSession(mainTopic.id, mainTopic.studyDuration, mainTopic.title)}
+                            className="flex items-center gap-1.5 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                        >
+                            <PlayIcon className="w-4 h-4" />
+                            Start Session
+                        </button>
+                    )}
                 </div>
             </div>
         }

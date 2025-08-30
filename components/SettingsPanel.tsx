@@ -1,11 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { AppSettings } from '../types';
 import Modal from './ui/Modal';
 import ChevronRightIcon from './icons/ChevronRightIcon';
 import WandIcon from './icons/WandIcon';
 import LinkIcon from './icons/LinkIcon';
 import DatabaseIcon from './icons/DatabaseIcon';
+import MusicIcon from './icons/MusicIcon';
 
 type AiProvider = AppSettings['customAiConfig']['provider'];
 const aiProviders: { id: AiProvider; label: string }[] = [
@@ -69,6 +71,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             return { aiProvider: true };
         }
     });
+    const audioFileInputRef = useRef<HTMLInputElement>(null);
     
     useEffect(() => {
         try {
@@ -95,6 +98,41 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             customAiConfig: { ...appSettings.customAiConfig, [key]: value },
         });
     };
+
+    const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+            alert("File is too large. Please select a sound file under 5MB.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const dataUrl = event.target?.result as string;
+            onAppSettingsChange({
+                ...appSettings,
+                customAlarmSound: dataUrl,
+                customAlarmSoundName: file.name,
+            });
+        };
+        reader.onerror = () => {
+            alert("Failed to read the audio file.");
+        };
+        reader.readAsDataURL(file);
+
+        if(e.target) e.target.value = '';
+    };
+
+    const handleRemoveCustomSound = () => {
+        onAppSettingsChange({
+            ...appSettings,
+            customAlarmSound: undefined,
+            customAlarmSoundName: undefined,
+        });
+    };
+
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Settings">
@@ -135,6 +173,38 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                             <p className="text-sm text-slate-400">Using the pre-configured DeepSeek provider. No extra configuration needed.</p>
                         </div>
                      )}
+                </SettingsSection>
+                
+                <SettingsSection 
+                    title="Audio" 
+                    icon={<MusicIcon className="w-5 h-5 text-slate-400"/>}
+                    isOpen={!!openSections['audio']}
+                    onToggle={() => handleToggleSection('audio')}
+                >
+                    <div>
+                        <label className="block mb-2 text-sm font-semibold text-slate-300">Custom Alarm Sound</label>
+                        {appSettings.customAlarmSoundName ? (
+                            <div className="flex items-center justify-between p-2 pl-3 bg-slate-800 rounded-md border border-slate-700">
+                                <p className="text-sm text-slate-200 truncate pr-2">{appSettings.customAlarmSoundName}</p>
+                                <button onClick={handleRemoveCustomSound} className="text-xs text-red-400 hover:underline flex-shrink-0">Remove</button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => audioFileInputRef.current?.click()}
+                                className="w-full text-center p-3 bg-slate-800/80 rounded-lg text-white hover:bg-sky-500/10 transition-all duration-200 border border-slate-700 hover:border-sky-500/50"
+                            >
+                                Upload Sound File
+                            </button>
+                        )}
+                        <input 
+                            type="file" 
+                            ref={audioFileInputRef} 
+                            onChange={handleAudioFileChange}
+                            className="hidden" 
+                            accept="audio/mpeg, audio/wav, audio/ogg"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">Upload a short sound file (.mp3, .wav, .ogg) for the Pomodoro alarm.</p>
+                    </div>
                 </SettingsSection>
 
                 <SettingsSection 

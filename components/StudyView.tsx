@@ -16,6 +16,7 @@ import EditableText from './ui/EditableText';
 import EditIcon from './icons/EditIcon';
 import AiEditPanel from './AiEditPanel';
 import Modal from './ui/Modal';
+import PomodoroTimer from './PomodoroTimer';
 
 interface StudyViewProps {
   outline: StudyOutline;
@@ -70,6 +71,8 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   const [timerModalState, setTimerModalState] = useState<{isOpen: boolean, topic: MainTopic | null}>({isOpen: false, topic: null});
   const [hours, setHours] = useState('0');
   const [minutes, setMinutes] = useState('0');
+  
+  const [activePomodoro, setActivePomodoro] = useState<{ topicId: string, duration: number, title: string } | null>(null);
 
 
   const activeStudyData = useMemo(() => {
@@ -177,6 +180,10 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
       setViewMode(mode);
       setViewAnimationKey(k => k + 1);
   };
+  
+  const handleStartSession = (topicId: string, duration: number, title: string) => {
+    setActivePomodoro({ topicId, duration, title });
+  };
 
   const openTimerModal = (topic: MainTopic) => {
     const duration = topic.studyDuration || 0;
@@ -208,6 +215,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
           onDeleteItem={(path) => onDeleteItem(outline.id, { unitId: selectedUnit?.id, ...path })}
           isEditing={isEditing}
           onOpenTimerModal={openTimerModal}
+          onStartSession={handleStartSession}
         />
       );
     }
@@ -386,6 +394,8 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
               onDeleteItem={(path) => onDeleteItem(outline.id, { unitId: selectedUnit?.id, ...path })}
               onReorderItem={(source, dest) => onReorderItem(outline.id, { ...source, parentPath: { unitId: selectedUnit?.id, ...source.parentPath }}, { ...dest, parentPath: { unitId: selectedUnit?.id, ...dest.parentPath }})}
               isEditing={isEditing}
+              onStartSession={handleStartSession}
+              onOpenTimerModal={openTimerModal}
             />
           )}
         </div>
@@ -394,6 +404,14 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
       <div className={`transition-all duration-500 ease-in-out ${isAiPanelOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20 pointer-events-none'}`}>
           <AiEditPanel onCommand={handleAiCommand} />
       </div>
+
+      {activePomodoro && (
+        <PomodoroTimer 
+            session={activePomodoro}
+            onClose={() => setActivePomodoro(null)}
+            appSettings={appSettings}
+        />
+      )}
 
 
       {viewMode === 'card' && (

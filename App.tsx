@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline } from './types';
 import { generateStudyOutline } from './services/geminiService';
@@ -39,6 +40,8 @@ const defaultSettings: AppSettings = {
     subjectEmphasis: '',
     intention: 'Default',
   },
+  customAlarmSound: undefined,
+  customAlarmSoundName: undefined,
 };
 
 const NavButton: React.FC<{

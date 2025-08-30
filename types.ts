@@ -123,4 +123,6 @@ export interface AppSettings {
   };
   notionApiKey: string;
   notionExportFormat: 'Normal' | 'Kanban' | 'Database';
+  customAlarmSound?: string; // Base64 data URI of the sound file
+  customAlarmSoundName?: string; // The name of the sound file
 }

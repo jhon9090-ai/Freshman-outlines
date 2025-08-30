@@ -8,6 +8,8 @@ import EditableText from './ui/EditableText';
 import PlusCircleIcon from './icons/PlusCircleIcon';
 import GripVerticalIcon from './icons/GripVerticalIcon';
 import TrashIcon from './icons/TrashIcon';
+import TimerIcon from './icons/TimerIcon';
+import PlayIcon from './icons/PlayIcon';
 
 type DraggedItem = {
     path: ItemPath;
@@ -170,9 +172,21 @@ interface LevelProps {
     handleGenericDragOver: HandleGenericDragOver;
     draggedItem: DraggedItem | null;
     dropIndicator: DropIndicatorInfo | null;
+    onStartSession: (topicId: string, duration: number, title: string) => void;
+    onOpenTimerModal: (topic: MainTopic) => void;
 }
 
-const Level: React.FC<LevelProps> = ({ mainTopic, level, mainTopicIndex, completedObjectives, onToggleObjective, onUpdateItem, onAddItem, onDeleteItem, isEditing, handleDragStart, handleGenericDragOver, draggedItem, dropIndicator }) => {
+const formatDuration = (totalMinutes: number) => {
+    if (!totalMinutes || totalMinutes <= 0) return '';
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    let result = '';
+    if (hours > 0) result += `${hours}h `;
+    if (minutes > 0) result += `${minutes}m`;
+    return result.trim();
+};
+
+const Level: React.FC<LevelProps> = ({ mainTopic, level, mainTopicIndex, completedObjectives, onToggleObjective, onUpdateItem, onAddItem, onDeleteItem, isEditing, handleDragStart, handleGenericDragOver, draggedItem, dropIndicator, onStartSession, onOpenTimerModal }) => {
     
     const path = { mainTopicId: mainTopic.id };
     const isDraggingThis = draggedItem?.type === 'mainTopic' && draggedItem?.path.mainTopicId === mainTopic.id;
@@ -204,6 +218,27 @@ const Level: React.FC<LevelProps> = ({ mainTopic, level, mainTopicIndex, complet
                         <TrashIcon className="w-5 h-5"/>
                     </button>
                 )}
+                <div className="flex items-center gap-2 mt-2">
+                    <button
+                        onClick={() => onOpenTimerModal(mainTopic)}
+                        className="flex items-center gap-1.5 text-slate-400 hover:text-sky-400 transition-colors px-3 py-1 rounded-full hover:bg-sky-500/10"
+                        title="Set study duration"
+                    >
+                        <TimerIcon className="w-4 h-4" />
+                        <span className="text-sm font-medium">
+                            {mainTopic.studyDuration ? formatDuration(mainTopic.studyDuration) : 'Set Time'}
+                        </span>
+                    </button>
+                    {mainTopic.studyDuration && mainTopic.studyDuration > 0 && !isEditing && (
+                        <button
+                            onClick={() => onStartSession(mainTopic.id, mainTopic.studyDuration, mainTopic.title)}
+                            className="flex items-center gap-1.5 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                        >
+                            <PlayIcon className="w-4 h-4" />
+                            Start
+                        </button>
+                    )}
+                </div>
             </div>
             <ul>
                 {mainTopic.subtopics.map((subtopic, index) => (
@@ -258,9 +293,11 @@ interface GamifiedStudyViewProps {
   onDeleteItem: (path: ItemPath) => void;
   onReorderItem: (source: { index: number; parentPath: ItemPath, type: string }, destination: { index: number; parentPath: ItemPath, type: string }) => void;
   isEditing: boolean;
+  onStartSession: (topicId: string, duration: number, title: string) => void;
+  onOpenTimerModal: (topic: MainTopic) => void;
 }
 
-const GamifiedStudyView: React.FC<GamifiedStudyViewProps> = ({ outline, completedObjectives, onUpdateProgress, onRevisionSelect, onUpdateItem, onAddItem, onDeleteItem, onReorderItem, isEditing }) => {
+const GamifiedStudyView: React.FC<GamifiedStudyViewProps> = ({ outline, completedObjectives, onUpdateProgress, onRevisionSelect, onUpdateItem, onAddItem, onDeleteItem, onReorderItem, isEditing, onStartSession, onOpenTimerModal }) => {
   const [draggedItem, setDraggedItem] = useState<DraggedItem | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicatorInfo | null>(null);
 
@@ -371,6 +408,8 @@ const GamifiedStudyView: React.FC<GamifiedStudyViewProps> = ({ outline, complete
                         handleGenericDragOver={handleGenericDragOver}
                         draggedItem={draggedItem}
                         dropIndicator={dropIndicator}
+                        onStartSession={onStartSession}
+                        onOpenTimerModal={onOpenTimerModal}
                     />
                 </React.Fragment>
             ))}
