@@ -6,6 +6,7 @@ import Checkbox from './ui/Checkbox';
 import EditableText from './ui/EditableText';
 import PlusCircleIcon from './icons/PlusCircleIcon';
 import TrashIcon from './icons/TrashIcon';
+import TimerIcon from './icons/TimerIcon';
 
 interface SubtopicAccordionProps {
   subtopic: SubTopic;
@@ -89,31 +90,56 @@ interface MainTopicCardProps {
   onAddItem: (type: 'mainTopic' | 'subtopic' | 'objective', path: ItemPath) => void;
   onDeleteItem: (path: ItemPath) => void;
   isEditing: boolean;
+  onOpenTimerModal: (topic: MainTopic) => void;
 }
 
-const MainTopicCard: React.FC<MainTopicCardProps> = ({ mainTopic, completedObjectives, onToggleObjective, isEmbedded = false, animationClass = '', onUpdateItem, onAddItem, onDeleteItem, isEditing }) => {
+const formatDuration = (totalMinutes: number) => {
+    if (!totalMinutes || totalMinutes <= 0) return '';
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    let result = '';
+    if (hours > 0) result += `${hours}h `;
+    if (minutes > 0) result += `${minutes}m`;
+    return result.trim();
+};
+
+const MainTopicCard: React.FC<MainTopicCardProps> = ({ mainTopic, completedObjectives, onToggleObjective, isEmbedded = false, animationClass = '', onUpdateItem, onAddItem, onDeleteItem, isEditing, onOpenTimerModal }) => {
   
   const content = (
     <>
         {!isEmbedded && 
-            <div className="relative group/main mb-8 flex-shrink-0">
-                <EditableText 
-                    Tag="h2"
-                    initialValue={mainTopic.title}
-                    onSave={(newText) => onUpdateItem({ mainTopicId: mainTopic.id }, newText)}
-                    isEditable={isEditing}
-                    className="text-4xl md:text-5xl font-bold text-white text-center"
-                    inputClassName="text-4xl md:text-5xl font-bold text-center"
-                />
-                {isEditing && (
+            <div className="relative group/main mb-8 flex-shrink-0 text-center">
+                <div className="flex justify-center items-center gap-3">
+                    <EditableText 
+                        Tag="h2"
+                        initialValue={mainTopic.title}
+                        onSave={(newText) => onUpdateItem({ mainTopicId: mainTopic.id }, newText)}
+                        isEditable={isEditing}
+                        className="text-4xl md:text-5xl font-bold text-white"
+                        inputClassName="text-4xl md:text-5xl font-bold text-center"
+                    />
+                    {isEditing && (
+                        <button
+                            onClick={() => onDeleteItem({ mainTopicId: mainTopic.id })}
+                            className="p-2 text-slate-500 hover:text-red-500 opacity-0 group-hover/main:opacity-100 transition-opacity"
+                            title="Delete main topic"
+                        >
+                            <TrashIcon className="w-6 h-6" />
+                        </button>
+                    )}
+                </div>
+                <div className="flex items-center justify-center gap-2 mt-2">
                     <button
-                        onClick={() => onDeleteItem({ mainTopicId: mainTopic.id })}
-                        className="absolute top-1/2 -right-10 -translate-y-1/2 p-2 text-slate-500 hover:text-red-500 opacity-0 group-hover/main:opacity-100 transition-opacity"
-                        title="Delete main topic"
+                        onClick={() => onOpenTimerModal(mainTopic)}
+                        className="flex items-center gap-1.5 text-slate-400 hover:text-sky-400 transition-colors px-3 py-1 rounded-full hover:bg-sky-500/10"
+                        title="Set study duration"
                     >
-                        <TrashIcon className="w-6 h-6" />
+                        <TimerIcon className="w-4 h-4" />
+                        <span className="text-sm font-medium">
+                            {mainTopic.studyDuration ? formatDuration(mainTopic.studyDuration) : null}
+                        </span>
                     </button>
-                )}
+                </div>
             </div>
         }
         <div className={`${isEmbedded ? '' : 'flex-1 space-y-4 overflow-y-auto overscroll-y-contain pr-2'}`}>
@@ -149,7 +175,7 @@ const MainTopicCard: React.FC<MainTopicCardProps> = ({ mainTopic, completedObjec
   }
 
   return (
-    <div className={`w-full max-w-4xl h-full flex flex-col glass-panel rounded-2xl p-6 md:p-8 shadow-2xl mx-auto ${animationClass}`}>
+    <div className={`w-full max-w-5xl h-full flex flex-col glass-panel rounded-2xl p-6 md:p-8 shadow-2xl mx-auto ${animationClass}`}>
         {content}
     </div>
   );

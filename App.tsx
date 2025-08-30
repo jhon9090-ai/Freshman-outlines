@@ -336,6 +336,36 @@ export default function App(): React.ReactNode {
     );
   }, []);
 
+  const handleUpdateStudyDuration = useCallback((
+    outlineId: string,
+    path: ItemPath,
+    durationInMinutes: number
+  ) => {
+      setOutlines(prev =>
+          prev.map(outline => {
+              if (outline.id !== outlineId) return outline;
+
+              const newOutline = JSON.parse(JSON.stringify(outline));
+
+              const findAndUpdate = (topics: MainTopic[]): MainTopic[] => {
+                  return topics.map(mt => {
+                      if (mt.id !== path.mainTopicId) return mt;
+                      return { ...mt, studyDuration: durationInMinutes };
+                  });
+              };
+
+              if (newOutline.isThemeOutline && path.unitId) {
+                  const unit = newOutline.units?.find((u: UnitOutline) => u.id === path.unitId);
+                  if (unit) unit.mainTopics = findAndUpdate(unit.mainTopics);
+              } else if (path.mainTopicId) {
+                  newOutline.mainTopics = findAndUpdate(newOutline.mainTopics || []);
+              }
+              
+              return newOutline;
+          })
+      );
+  }, []);
+
   const handleAddOutlineItem = useCallback((
       outlineId: string,
       type: 'mainTopic' | 'subtopic' | 'objective',
@@ -538,6 +568,7 @@ export default function App(): React.ReactNode {
               onDeleteItem={handleDeleteOutlineItem}
               onReorderItem={handleReorderOutlineItem}
               onUpdateOutline={handleUpdateOutline}
+              onUpdateStudyDuration={handleUpdateStudyDuration}
             />
         </div>
       );

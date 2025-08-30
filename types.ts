@@ -13,6 +13,7 @@ export interface MainTopic {
   id: string;
   title: string;
   subtopics: SubTopic[];
+  studyDuration?: number; // in minutes
 }
 
 // New type for a unit inside a theme-based outline

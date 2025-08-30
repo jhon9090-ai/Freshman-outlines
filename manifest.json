@@ -1,0 +1,21 @@
+{
+  "name": "Intelligent Outlines",
+  "short_name": "Outlines",
+  "description": "An AI-powered platform for generating structured study outlines from source material or topics. Features a sleek, futuristic UI with customizable generation settings and interactive study modes.",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#020617",
+  "background_color": "#020617"
+}

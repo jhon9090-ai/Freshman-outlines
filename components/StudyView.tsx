@@ -15,6 +15,7 @@ import PlusCircleIcon from './icons/PlusCircleIcon';
 import EditableText from './ui/EditableText';
 import EditIcon from './icons/EditIcon';
 import AiEditPanel from './AiEditPanel';
+import Modal from './ui/Modal';
 
 interface StudyViewProps {
   outline: StudyOutline;
@@ -26,6 +27,7 @@ interface StudyViewProps {
   onDeleteItem: (outlineId: string, path: ItemPath) => void;
   onReorderItem: (outlineId: string, source: { index: number; parentPath: ItemPath; type: string; }, destination: { index: number; parentPath: ItemPath, type: string }) => void;
   onUpdateOutline: (outlineId: string, newOutlineData: PartialStudyOutline) => void;
+  onUpdateStudyDuration: (outlineId: string, path: ItemPath, durationInMinutes: number) => void;
 }
 
 type StudyCard = { type: 'maintopic'; data: MainTopic } | { type: 'revision'; data: StudyOutline['revisionAssistant'] };
@@ -54,7 +56,7 @@ const UnitLevelNode: React.FC<{
 };
 
 
-const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress, appSettings, onUpdateItem, onAddItem, onDeleteItem, onReorderItem, onUpdateOutline }) => {
+const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress, appSettings, onUpdateItem, onAddItem, onDeleteItem, onReorderItem, onUpdateOutline, onUpdateStudyDuration }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revisionScreen, setRevisionScreen] = useState<RevisionSection | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -64,6 +66,10 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [cardAnimation, setCardAnimation] = useState('view-container-animate');
   const [viewAnimationKey, setViewAnimationKey] = useState(0);
+  
+  const [timerModalState, setTimerModalState] = useState<{isOpen: boolean, topic: MainTopic | null}>({isOpen: false, topic: null});
+  const [hours, setHours] = useState('0');
+  const [minutes, setMinutes] = useState('0');
 
 
   const activeStudyData = useMemo(() => {
@@ -172,6 +178,20 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
       setViewAnimationKey(k => k + 1);
   };
 
+  const openTimerModal = (topic: MainTopic) => {
+    const duration = topic.studyDuration || 0;
+    setHours(String(Math.floor(duration / 60)));
+    setMinutes(String(duration % 60));
+    setTimerModalState({isOpen: true, topic});
+  };
+
+  const handleSaveDuration = () => {
+      if (!timerModalState.topic) return;
+      const totalMinutes = (parseInt(hours, 10) || 0) * 60 + (parseInt(minutes, 10) || 0);
+      onUpdateStudyDuration(outline.id, { unitId: selectedUnit?.id, mainTopicId: timerModalState.topic.id }, totalMinutes);
+      setTimerModalState({isOpen: false, topic: null});
+  };
+
   const renderCardView = () => {
     if (!currentCard) return null;
 
@@ -187,6 +207,7 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
           onAddItem={(type, path) => onAddItem(outline.id, type, { unitId: selectedUnit?.id, ...path })}
           onDeleteItem={(path) => onDeleteItem(outline.id, { unitId: selectedUnit?.id, ...path })}
           isEditing={isEditing}
+          onOpenTimerModal={openTimerModal}
         />
       );
     }
@@ -406,6 +427,50 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
             </div>
         </footer>
       )}
+      
+      <Modal isOpen={timerModalState.isOpen} onClose={() => setTimerModalState({isOpen: false, topic: null})} title="Set Study Time" backdrop={false} variant="solid">
+        <div className="space-y-4">
+            <p className="text-sm text-slate-400">Set an estimated time for the topic: <strong className="text-slate-200">{timerModalState.topic?.title}</strong></p>
+            <div className="flex items-center gap-4">
+                <div className="flex-1">
+                    <label className="block mb-1 font-semibold text-slate-300">Hours</label>
+                    <input 
+                        type="number" 
+                        min="0"
+                        value={hours}
+                        onChange={(e) => setHours(e.target.value)}
+                        className="w-full p-2 bg-slate-800 border border-slate-700 rounded-md focus:ring-sky-500 focus:border-sky-500 text-white" 
+                    />
+                </div>
+                <div className="flex-1">
+                    <label className="block mb-1 font-semibold text-slate-300">Minutes</label>
+                    <input 
+                        type="number" 
+                        min="0"
+                        max="59"
+                        step="5"
+                        value={minutes}
+                        onChange={(e) => setMinutes(e.target.value)}
+                        className="w-full p-2 bg-slate-800 border border-slate-700 rounded-md focus:ring-sky-500 focus:border-sky-500 text-white" 
+                    />
+                </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 mt-2 border-t border-white/10">
+                <button 
+                    onClick={() => setTimerModalState({isOpen: false, topic: null})} 
+                    className="py-2 px-4 rounded-md text-white bg-slate-700 hover:bg-slate-600 font-semibold"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onClick={handleSaveDuration}
+                    className="py-2 px-4 rounded-md text-white bg-sky-500 hover:bg-sky-600 font-semibold"
+                >
+                    Save Time
+                </button>
+            </div>
+        </div>
+      </Modal>
     </div>
   );
   
