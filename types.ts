@@ -1,8 +1,20 @@
+style.ts
 export interface LearningObjective {
   id: string;
   text: string;
 }
 
+export interface ItemPath {
+
+  unitId?: string;
+
+  mainTopicId?: string;
+
+  subtopicId?: string;
+
+  objectiveId?: string;
+
+}
 export interface SubTopic {
   id:string;
   title: string;
@@ -89,7 +101,7 @@ export interface ExamAnalysis {
 }
 
 export type AppStatus = 'idle' | 'loading' | 'success' | 'error';
-export type AppView = 'create' | 'curriculum' | 'outlines' | 'study';
+export type AppView = 'create' | 'curriculum' | 'outlines' | 'study' | 'tracker';
 
 export type RevisionSection = 'focus' | 'questions' | 'definitions' | 'quick-facts';
 
@@ -125,4 +137,146 @@ export interface AppSettings {
   notionExportFormat: 'Normal' | 'Kanban' | 'Database';
   customAlarmSound?: string; // Base64 data URI of the sound file
   customAlarmSoundName?: string; // The name of the sound file
+}
+
+}
+
+
+
+export interface DailyHabitLog {
+
+  date: string;
+
+  tasksCompleted: number;
+
+  tasksTotal: number;
+
+  procrastinationLogged: boolean;
+
+  performanceScore: number;
+
+  aiInsight: string;
+
+}
+
+}
+
+
+
+export interface PastExamResult {
+
+  id: string;
+
+  subject: string;
+
+  yearEC: number; // Ethiopian Calendar
+
+  score: number; // out of 100
+
+  dateLogged: string;
+
+}
+
+
+
+export interface UnitCompletionLog {
+
+  unitId: string;
+
+  subject: string;
+
+  startTime: string;
+
+  finishTime: string;
+
+  totalTimeSpentMinutes: number;
+
+}
+
+
+export interface ChatMessage {
+
+    role: 'user' | 'model';
+
+    text: string;
+
+}
+
+
+
+export interface DailyTaskDetail {
+
+  task: string;
+
+  rationale: string;
+
+  impact: string;
+
+}
+
+
+
+
+export interface TeachedMaterial {
+
+  name: string;
+
+  content: string;
+
+  dateAdded: string;
+
+}
+
+
+
+export interface TrackerState {
+
+  habitHistory: DailyHabitLog[];
+
+  examResults: PastExamResult[];
+
+  completionLogs: UnitCompletionLog[];
+
+  teachedMaterials: TeachedMaterial[];
+
+  currentStreak: number;
+
+
+  lastUpdated: string;
+
+  lastDirectives?: string[]; 
+
+  chatHistory: ChatMessage[];
+
+  cachedAnalysis?: TrackerAIAnalysis & { cacheDate: string };
+
+
+  isSchoolDay: boolean;
+
+}
+
+export interface TrackerAIAnalysis {
+
+
+  dailyTasks: DailyTaskDetail[];
+
+  prediction: string;
+
+
+  growthCatalyst: string; 
+
+  encouragement: string;
+
+
+  masteryPercentage: number;
+
+  status: 'on-track' | 'at-risk' | 'behind';
+
+
+  pathDeviation: string; 
+
+  directivesFollowed: boolean;
+
+  isHoliday?: boolean;
+
 }
