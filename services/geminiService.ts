@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { AdvancedSettings, AppSettings, StudyOutline, SubTopic, MCQ, LearningObjective, ExamAnalysis, MainTopic, UnitOutline, CurriculumSource } from '../types';
+import { AdvancedSettings, AppSettings, StudyOutline, SubTopic, MCQ, LearningObjective, ExamAnalysis, MainTopic, UnitOutline, CurriculumSource, TrackerState, DailyHabitLog, TrackerAIAnalysis, ChatMessage } from '../types';
+import { curriculumData } from '../constants';
 
 // --- UTILITY ---
 /**
@@ -59,6 +60,178 @@ const getAiClient = (settings: AppSettings): { ai: GoogleGenAI; model: string } 
                 ai: new GoogleGenAI({ apiKey }),
                 model: "gemini-2.5-flash",
             };
+    }
+};
+
+
+const getEthiopianHolidayLabel = (date: Date): string | null => {
+    const day = date.getDate();
+    const month = date.getMonth(); 
+    const year = date.getFullYear();
+
+    if (month === 0 && day === 7) return "Genna (Ethiopian Christmas)";
+    if (month === 0 && day === 19) return "Timket (Epiphany)";
+    if (month === 2 && day === 2) return "Adwa Victory Day";
+    if (month === 4 && day === 5) return "Patriots' Day";
+    if (month === 8 && day === 11) return "Enkutatash (Ethiopian New Year)";
+    if (month === 8 && day === 27) return "Meskel (Finding of the True Cross)";
+
+    const moveable: Record<string, string> = {
+        "2025-4-18": "Siklet (Good Friday)", "2025-4-20": "Fasika (Ethiopian Easter)",
+        "2026-4-10": "Siklet (Good Friday)", "2026-4-12": "Fasika (Ethiopian Easter)",
+    };
+    const key = `${year}-${month + 1}-${day}`;
+    return moveable[key] || null;
+};
+
+const countTotalCurriculumUnits = () => {
+    let total = 0;
+    Object.values(curriculumData).forEach(subject => {
+        subject.themes.forEach(theme => { total += theme.units.length; });
+    });
+    return total;
+};
+
+export const generateTrackerAnalysis = async (
+    allOutlines: StudyOutline[],
+    habitHistory: DailyHabitLog[],
+    appSettings: AppSettings,
+    trackerState?: TrackerState
+): Promise<TrackerAIAnalysis> => {
+    const { ai, model } = getAiClient(appSettings);
+
+    const totalUnitsGoal = countTotalCurriculumUnits();
+    const completedUnitsCount = allOutlines.filter(o => {
+        const total = (o.mainTopics || []).flatMap(t => t.subtopics.flatMap(st => st.learningObjectives)).length;
+        return total > 0 && o.completedObjectives.length === total;
+    }).length;
+    
+    const masteryRate = (completedUnitsCount / totalUnitsGoal) * 100;
+    const nowEAT = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Addis_Ababa"}));
+    const dayOfWeek = nowEAT.toLocaleDateString('en-US', { weekday: 'long' });
+    const holiday = getEthiopianHolidayLabel(nowEAT);
+
+    const schedule: Record<string, string> = {
+        'Sunday': 'Mathematics', 'Monday': 'Biology', 'Tuesday': 'Physics', 
+        'Wednesday': 'Chemistry', 'Thursday': 'SAT', 'Friday': 'English', 'Saturday': 'Revision/Consolidation'
+    };
+    const currentSubject = schedule[dayOfWeek];
+
+    if (holiday) {
+        return {
+            dailyTasks: [{ task: `Observe ${holiday}`, rationale: "Bio-system recovery is a mandatory strategic component.", impact: "Prevents burnout and aligns with cultural velocity." }],
+            prediction: "Trajectory paused for mandated recharge.",
+            growthCatalyst: "The most successful thinkers know when the workstation must remain dark. Rest is your fuel for the next breach.",
+            encouragement: "God help us on this sacred day. Recharge fully.",
+            masteryPercentage: masteryRate,
+            status: 'on-track',
+            pathDeviation: "Strategic Holiday Rest.",
+            directivesFollowed: true,
+            isHoliday: true
+        };
+    }
+
+    const isSchoolDay = trackerState?.isSchoolDay || false;
+    const isRevisionDay = dayOfWeek === 'Saturday';
+    const learnedPatterns = trackerState?.teachedMaterials?.map(m => `FILE: ${m.name}\nCONTENT: ${m.content}`).join('\n\n') || "None provided yet.";
+    
+    const systemInstruction = `You are the "Brainwave Strategic Partner". 
+PERSONA: Decisive, non-biased, brutally honest, but collaborative. You do not sugarcoat failure but you provide mathematical fixes.
+GOAL: 585-595/600 on the Ethiopian Entrance Exam by June 2026.
+
+STRICT WORKSTATION PROTOCOLS:
+1. SCHOOL DAY (ON): The user is at school 7:00 AM - 2:00 PM. Daily study tasks MUST be scheduled between 3:00 PM and 10:00 PM.
+2. NO SCHOOL (OFF): The user is available all day. Daily study tasks MUST span the full day, typically starting at 7:00 AM and ending at 8:00 PM. DO NOT default to evening hours if School Day is OFF.
+
+INSTRUCTIONS:
+1. Focus on "${currentSubject}". 
+2. IF "LEARNED PATTERNS" are present: Mimic the rigor, style, and question presentation of those past exams.
+3. IF Saturday: Set "Strategic Revision Window" tasks focusing on MCQ mastery and previous unit consolidation.
+4. "Growth Catalyst": Replace dull reports with a high-fidelity, inspirational foresight on the user's velocity.
+5. "Daily Tasks": Use 12-hour format. Every task MUST have a technical Rationale and a performance Impact.
+
+JSON ONLY SCHEMA:
+{
+  "dailyTasks": [{ "task": string, "rationale": string, "impact": string }],
+  "prediction": string,
+  "growthCatalyst": string,
+  "encouragement": string,
+  "masteryPercentage": number,
+  "status": "on-track" | "at-risk" | "behind",
+  "pathDeviation": string,
+  "directivesFollowed": boolean
+}`;
+
+    const context = `
+Current Focus: ${currentSubject}
+Calendar: ${dayOfWeek}
+Workstation Status: ${isSchoolDay ? "SCHOOL MODE ACTIVE" : "SCHOOL MODE OFF - FULL DAY AVAILABLE"}
+Revision Context: ${isRevisionDay ? "SATURDAY STRATEGIC REVISION" : "STANDARD PROGRESSION"}
+Learned Technical Context: ${learnedPatterns}
+Current Mastery: ${completedUnitsCount}/${totalUnitsGoal} units
+Progress: ${JSON.stringify(allOutlines.map(o => ({ title: o.title, objectives: o.completedObjectives.length })))}`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model,
+            contents: context,
+            config: { systemInstruction, responseMimeType: "application/json" }
+        });
+
+        const data = JSON.parse(response.text || '{}');
+        return {
+            dailyTasks: data.dailyTasks || [],
+            prediction: data.prediction || "Trajectory stable.",
+            growthCatalyst: data.growthCatalyst || "Momentum is the only variable we control. Own it.",
+            encouragement: data.encouragement || "Proceed with intent.",
+            masteryPercentage: masteryRate,
+            status: data.status || "on-track",
+            pathDeviation: data.pathDeviation || "Acceptable velocity.",
+            directivesFollowed: data.directivesFollowed ?? true
+        };
+    } catch (err) {
+        return {
+            dailyTasks: [{ task: "Strategic Sync", rationale: "API Connection lag.", impact: "Maintains mindset during downtime." }],
+            prediction: "Syncing...",
+            growthCatalyst: "Even in silence, the objective remains clear. Keep pushing.",
+            encouragement: "God help you!!!!",
+            masteryPercentage: masteryRate,
+            status: 'at-risk',
+            pathDeviation: "Link instability.",
+            directivesFollowed: false
+        };
+    }
+};
+
+export const consultMentor = async (
+    userMessage: string,
+    history: ChatMessage[],
+    allOutlines: StudyOutline[],
+    trackerState: TrackerState,
+    appSettings: AppSettings
+): Promise<string> => {
+    const { ai, model } = getAiClient(appSettings);
+    const learnedPatterns = trackerState?.teachedMaterials?.map(m => `FILE: ${m.name}\nCONTENT: ${m.content}`).join('\n\n') || "No patterns uploaded.";
+    
+    const systemInstruction = `You are the "Brainwave Strategic Partner". 
+Persona: Decisive, brutally honest, non-biased, collaborative strategist. 
+Invite the user to look at their metrics with you. Use LaTeX and Markdown. 12-hour time.
+Mention specific technical patterns from "Learned Context" below when giving advice.
+
+LEARNED CONTEXT:
+${learnedPatterns}`;
+
+    const chat = ai.chats.create({
+        model,
+        config: { systemInstruction },
+        history: history.map(m => ({ role: m.role, parts: [{ text: String(m.text) }] }))
+    });
+
+    try {
+        const response = await chat.sendMessage({ message: userMessage });
+        return String(response.text);
+    } catch (err) {
+        return "COMMUNICATION LINK SEVERED. Re-sync workstation.";
     }
 };
 
@@ -361,6 +534,7 @@ export const generateStudyOutline = async (
 
   } catch (error) {
     handleGeminiError(error, 'generate study outline');
+    throw error;
   }
 };
 
@@ -394,7 +568,7 @@ const examAnalysisSchema = {
     properties: {
         mainFocus: { type: Type.ARRAY, items: { type: Type.STRING }, description: "A list of the main topics or concepts the exam focuses on." },
         questionTypes: { type: Type.ARRAY, items: { type: Type.STRING }, description: "A list describing the common types of questions (e.g., 'Multiple-choice definition questions', 'Problem-solving questions requiring formula application')." },
-        futurePredictions: { type: Type.ARRAY, items: { type: 'STRING' }, description: "A list of predictions on how future questions might be structured or what topics might be combined." },
+        futurePredictions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "A list of predictions on how future questions might be structured or what topics might be combined." },
         practiceSources: { type: Type.ARRAY, items: { type: Type.STRING }, description: "A list of recommended sources for practice questions, such as textbook chapters, specific websites, or problem sets." }
     }
 };
