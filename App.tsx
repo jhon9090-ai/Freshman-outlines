@@ -1,7 +1,6 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline } from './types';
+import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline, TrackerState, DailyHabitLog, ItemPath, TrackerAIAnalysis, PastExamResult, ChatMessage, TeachedMaterial } from './types';
 import { generateStudyOutline } from './services/geminiService';
 import InputPanel from './components/InputPanel';
 import StudyView from './components/StudyView';
@@ -9,14 +8,19 @@ import Spinner from './components/ui/Spinner';
 import CurriculumView from './components/CurriculumView';
 import Dashboard from './components/Dashboard';
 import SettingsPanel from './components/SettingsPanel';
+import TrackerView from './components/TrackerView';
 import SettingsIcon from './components/icons/SettingsIcon';
 import BookOpenIcon from './components/icons/BookOpenIcon';
 import ZapIcon from './components/icons/ZapIcon';
 import StarIcon from './components/icons/StarIcon';
 import BookmarkIcon from './components/icons/BookmarkIcon';
+import ChartIcon from './components/icons/ChartIcon';
+
 
 const SETTINGS_STORAGE_KEY = 'app-settings';
 const OUTLINES_STORAGE_KEY = 'app-outlines';
+const TRACKER_STORAGE_KEY = 'app-tracker-v9';
+
 
 export interface ItemPath {
   unitId?: string;
@@ -70,6 +74,7 @@ const BottomNavBar: React.FC<{
       <NavButton viewId="curriculum" currentView={currentView} onClick={onViewChange} icon={<BookOpenIcon className="w-6 h-6" />} />
       <NavButton viewId="create" currentView={currentView} onClick={onViewChange} icon={<ZapIcon className="w-6 h-6" />} />
       <NavButton viewId="outlines" currentView={currentView} onClick={onViewChange} icon={<BookmarkIcon className="w-6 h-6" />} />
+      <NavButton viewId="tracker" currentView={currentView} onClick={onViewChange} icon={<ChartIcon className="w-5 h-5" />} />
       <div className="w-px h-8 bg-white/10 mx-2"></div>
       <button
         onClick={onSettingsClick}
@@ -128,6 +133,51 @@ export default function App(): React.ReactNode {
       return defaultSettings;
   });
 
+  const [trackerState, setTrackerState] = useState<TrackerState>(() => {
+    try {
+      const saved = localStorage.getItem(TRACKER_STORAGE_KEY);
+      if (saved) {
+
+          const parsed = JSON.parse(saved);
+
+          return {
+
+              ...parsed,
+
+              isSchoolDay: parsed.isSchoolDay ?? false, // Ensure defaults if old key version
+
+              teachedMaterials: parsed.teachedMaterials ?? [],
+
+              chatHistory: parsed.chatHistory ?? []
+
+          };
+
+      }
+
+    } catch (e) {}
+
+    return { 
+
+      habitHistory: [], 
+
+      examResults: [],
+
+      completionLogs: [],
+
+      teachedMaterials: [],
+
+      chatHistory: [],
+
+      currentStreak: 0, 
+
+      lastUpdated: new Date().toISOString(),
+
+      isSchoolDay: false // OFF BY DEFAULT
+
+    };
+
+  });
+
   const [isNavBarVisible, setIsNavBarVisible] = useState(true);
   const lastScrollY = useRef(0);
 
@@ -148,6 +198,14 @@ export default function App(): React.ReactNode {
       console.error("Failed to save settings to storage", e);
     }
   }, [appSettings]);
+  
+  useEffect(() => {
+    try {
+      localStorage.setItem(TRACKER_STORAGE_KEY, JSON.stringify(trackerState));
+    } catch (e) {
+      console.error("Failed to save tracker state to storage", e);
+    }
+  }, [trackerState]);
   
   // Effect to keep active outline in sync with the main list
   useEffect(() => {
@@ -228,12 +286,87 @@ export default function App(): React.ReactNode {
       setStatus('error');
     }
   }, [view, appSettings]);
+
+
+  const handleUpdateTracker = (newLog: DailyHabitLog) => {
+    setTrackerState(prev => {
+        const history = [...prev.habitHistory, newLog].slice(-30);
+        return { ...prev, habitHistory: history, lastUpdated: new Date().toISOString() };
+    });
+  };
+
+  const handleLogExamResult = (result: PastExamResult) => {
+
+    setTrackerState(prev => ({
+
+        ...prev,
+
+        examResults: [...prev.examResults, result],
+
+        lastUpdated: new Date().toISOString()
+
+    }));
+
+  };
+
+  const handleCacheTrackerAnalysis = (analysis: TrackerAIAnalysis) => {
+    setTrackerState(prev => ({
+        ...prev,
+        lastDirectives: analysis.dailyTasks.map(t => t.task),
+        cachedAnalysis: {
+            ...analysis,
+            cacheDate: new Date().toDateString()
+        }
+    }));
+  };
+
+  const handleSetSchoolDay = (isSchool: boolean) => {
+
+    setTrackerState(prev => ({
+
+        ...prev,
+
+        isSchoolDay: isSchool,
+
+        lastUpdated: new Date().toISOString()
+
+    }));
+
+  };
+  
+  const handleUpdateChatHistory = (newHistory: ChatMessage[]) => {
+
+    setTrackerState(prev => ({
+
+        ...prev,
+
+        chatHistory: newHistory,
+
+        lastUpdated: new Date().toISOString()
+
+    }));
+
+  };
   
   const handleUpdateDefaultAdvancedSettings = (newDefaults: AdvancedSettings) => {
       setAppSettings(prev => ({
           ...prev,
           advSettings: newDefaults,
       }));
+  };
+
+  const handleTeachMentor = (material: TeachedMaterial) => {
+
+    setTrackerState(prev => ({
+
+        ...prev,
+
+        teachedMaterials: [...prev.teachedMaterials, material],
+
+        lastUpdated: new Date().toISOString()
+
+    }));
+
   };
 
   const handleSelectOutline = (outlineId: string) => {
@@ -577,7 +710,7 @@ export default function App(): React.ReactNode {
       );
     }
     
-    const viewOrder: AppView[] = ['curriculum', 'create', 'outlines'];
+    const viewOrder: AppView[] = ['curriculum', 'create', 'outlines', 'tracker'];
     const activeIndex = viewOrder.indexOf(view);
 
     const viewComponents: Record<AppView, React.ReactNode> = {
@@ -611,7 +744,17 @@ export default function App(): React.ReactNode {
                 appSettings={appSettings}
             />
         ),
-        study: null, // 'study' is handled separately
+
+        tracker: (
+            <TrackerView 
+                outlines={outlines} 
+                trackerState={trackerState} 
+                onUpdateTracker={handleUpdateTracker} 
+                onCacheAnalysis={handleCacheTrackerAnalysis}
+                appSettings={appSettings} 
+            />
+        ),
+        study: null,
     };
 
     return (
