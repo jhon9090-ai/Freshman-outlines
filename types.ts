@@ -1,4 +1,3 @@
-style.ts
 export interface LearningObjective {
   id: string;
   text: string;
