@@ -138,7 +138,6 @@ export interface AppSettings {
   customAlarmSoundName?: string; // The name of the sound file
 }
 
-}
 
 
 
@@ -155,8 +154,6 @@ export interface DailyHabitLog {
   performanceScore: number;
 
   aiInsight: string;
-
-}
 
 }
 
