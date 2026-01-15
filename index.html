@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" class="dark">
   <head>
@@ -12,6 +13,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+
     <style>
       :root {
         --color-primary-accent: #0ea5e9;
@@ -209,13 +212,36 @@
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^18.2.0",
-    "react-dom/": "https://esm.sh/react-dom@^18.2.0/",
-    "react/": "https://esm.sh/react@^18.2.0/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.12.0",
-    "pdfjs-dist": "https://esm.sh/pdfjs-dist@^4.5.136",
+    "react": "https://esm.sh/react@18.2.0",
+
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+
+    "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+
+    "@google/genai": "https://esm.sh/@google/genai@1.12.0",
+
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.5.136",
+
     "jspdf": "https://esm.sh/jspdf@2.5.1",
-    "html2canvas": "https://esm.sh/html2canvas@1.4.1"
+
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+
+    "react-markdown": "https://esm.sh/react-markdown@9.0.1?external=react,react-dom",
+
+    "remark-math": "https://esm.sh/remark-math@6.0.0",
+
+    "katex": "https://esm.sh/katex@0.16.8",
+
+    "rehype-katex": "https://esm.sh/rehype-katex@7.0.0?external=katex,react,react-dom",
+
+    "remark-gfm": "https://esm.sh/remark-gfm@4.0.0",
+
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+
+    "react/": "https://esm.sh/react@^19.2.3/"
+
   }
 }
 </script>
