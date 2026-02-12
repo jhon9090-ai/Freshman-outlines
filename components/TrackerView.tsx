@@ -159,10 +159,9 @@ const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpd
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionStartRef = useRef<Date>(getEATDate());
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(getEATDate()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  useEffect(() => { const timer = setInterval(() => setCurrentTime(getEATDate()), 1000); return () => clearInterval(timer); }, []);
+  useEffect(() => { const raw = localStorage.getItem(TRACKER_DAILY_KEY); if (raw) setChecked(JSON.parse(raw)); }, []);
+  useEffect(() => { localStorage.setItem(TRACKER_DAILY_KEY, JSON.stringify(checked)); }, [checked]);
 
   useEffect(() => {
     const raw = localStorage.getItem(TRACKER_DAILY_KEY);
@@ -241,6 +240,8 @@ const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpd
       setIsLoading(false);
     }
   };
+
+  useEffect(() => { fetchAnalysis(); }, [plannedTasks.length, trackerState.examResults.length, trackerState.isSchoolDay, trackerState.teachedMaterials.length]);
 
   useEffect(() => {
     fetchAnalysis();
@@ -431,6 +432,7 @@ const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpd
             <p className="text-sm text-slate-300 mt-2">Next-week auto-blueprint: {weeklyDebrief.nextWeekDirective}</p>
           </div>
         </div>
+      )}
 
         <div className="space-y-6">
           <div className="glass-panel p-6 rounded-[2rem]">
