@@ -112,8 +112,10 @@ const buildPlan = (outlines: StudyOutline[], state: TrackerState, now: Date, car
       }))
   );
 
-  const blockCount = Math.min(7, Math.max(3, Math.ceil(available / 85)));
-  const blockMinutes = Math.max(40, Math.floor(available / blockCount));
+  const targetBlocks = state.isSchoolDay ? 4 : 5;
+  const blockCount = Math.min(targetBlocks, Math.max(3, Math.ceil(available / 100)));
+  const blockMinutes = Math.max(50, Math.floor(available / blockCount));
+  const focusPatterns = ['Concept Build Sprint', 'Guided Practice Drill', 'Past-Paper Pattern Set', 'Error-Log Repair', 'Active Recall Chain', 'Speed MCQ Check'];
 
   const tasks: PlannedTask[] = [];
   for (let i = 0; i < blockCount; i++) {
@@ -126,6 +128,8 @@ const buildPlan = (outlines: StudyOutline[], state: TrackerState, now: Date, car
     const objectiveIds = (next?.objectives || []).slice(0, 3).map((o: LearningObjective) => o.id);
     const objectiveLabels = (next?.objectives || []).slice(0, 3).map((o: LearningObjective) => o.text);
 
+    const focusName = next ? `${next.topic} • ${next.subunit}` : focusPatterns[i % focusPatterns.length];
+
     tasks.push({
       id: `${now.toDateString()}-${i}`,
       subject: targetSubject,
@@ -133,9 +137,13 @@ const buildPlan = (outlines: StudyOutline[], state: TrackerState, now: Date, car
       endMinute: end,
       blockType,
       objectiveIds,
-      objectiveLabels,
+      objectiveLabels: objectiveLabels.length ? objectiveLabels : [
+        `${targetSubject} ${focusPatterns[i % focusPatterns.length]}: understand key idea`,
+        `${targetSubject} ${focusPatterns[i % focusPatterns.length]}: solve 10 questions`,
+        `${targetSubject} ${focusPatterns[i % focusPatterns.length]}: write 5-point recap`,
+      ],
       energyScore,
-      task: `${fmtMinute(start)} - ${fmtMinute(end)} • ${targetSubject}: ${next ? `${next.topic} • ${next.subunit}` : 'Core progression'}`,
+      task: `${fmtMinute(start)} - ${fmtMinute(end)} • ${targetSubject}: ${focusName}`,
       rationale: `Built from open time ${fmtMinute(openMinute)}, remaining ${remainingUnits} curriculum units, unfinished sub-units, and time to sleep (${fmtMinute(sleepMinute)}).`,
       impact: `Targets ≈${unitsPerDay.toFixed(2)} units/day so you can finish before exam day while keeping realistic block intensity.`,
     });
@@ -155,13 +163,15 @@ const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpd
   const [startMap, setStartMap] = useState<Record<string, string>>({});
   const [carryoverMinutes, setCarryoverMinutes] = useState(0);
   const [teachQuality, setTeachQuality] = useState<TeachQuality | null>(null);
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionStartRef = useRef<Date>(getEATDate());
 
-  useEffect(() => { const timer = setInterval(() => setCurrentTime(getEATDate()), 1000); return () => clearInterval(timer); }, []);
-  useEffect(() => { const raw = localStorage.getItem(TRACKER_DAILY_KEY); if (raw) setChecked(JSON.parse(raw)); }, []);
-  useEffect(() => { localStorage.setItem(TRACKER_DAILY_KEY, JSON.stringify(checked)); }, [checked]);
+  useEffect(() => {
+    const raw = localStorage.getItem(TRACKER_DAILY_KEY);
+    if (raw) setChecked(JSON.parse(raw));
+    const rawObj = localStorage.getItem(TRACKER_OBJECTIVE_KEY);
+    if (rawObj) setObjectiveChecked(JSON.parse(rawObj));
+  }, []);
 
   useEffect(() => {
     const raw = localStorage.getItem(TRACKER_DAILY_KEY);
@@ -338,7 +348,7 @@ const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpd
   const totalUnits = useMemo(() => countTotalUnits(), []);
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 md:p-8 space-y-8 animate-quickFadeIn pb-32">
+    <div className="w-full max-w-6xl mx-auto p-3 md:p-6 space-y-6 animate-quickFadeIn pb-24">
       <div className="glass-panel p-6 border-l-4 border-sky-500 bg-slate-900/40">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
           <div>
@@ -383,35 +393,35 @@ const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpd
             </div>
 
             {isLoading ? <div className="flex items-center gap-3"><Spinner className="w-5 h-5" /><p>Planning your day...</p></div> : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {plannedTasks.map((task, i) => (
-                  <div key={task.id} className={`w-full p-4 rounded-2xl text-left border ${checked[task.id] ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.02]'}`}>
-                    <div className="flex items-start gap-3">
-                      <button onClick={() => handleToggleTask(task)} className={`w-6 h-6 mt-1 rounded-full border-2 flex items-center justify-center ${checked[task.id] ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`}>
-                        {checked[task.id] && <span className="text-white text-xs">✓</span>}
+                  <div key={task.id} className={`w-full p-3 rounded-2xl text-left border ${checked[task.id] ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.02]'}`}>
+                    <div className="flex items-start gap-2">
+                      <button onClick={() => handleToggleTask(task)} className={`w-5 h-5 mt-1 rounded-full border-2 flex items-center justify-center ${checked[task.id] ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`}>
+                        {checked[task.id] && <span className="text-white text-[10px]">✓</span>}
                       </button>
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-white font-semibold">{i + 1}. {task.task}</p>
-                          <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-slate-800 text-slate-300">{task.blockType} • energy {task.energyScore}</span>
+                          <p className="text-white font-semibold text-[15px] leading-tight">{i + 1}. {task.task}</p>
+                          <span className="text-[9px] uppercase px-2 py-1 rounded-full bg-slate-800 text-slate-300">{task.blockType}</span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-1">{task.rationale}</p>
-                        <button onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)} className="text-xs mt-2 text-sky-300">{expandedTaskId === task.id ? 'Hide objectives' : 'Show objective checklist'}</button>
-                        {expandedTaskId === task.id && (
-                          <div className="mt-3 space-y-2">
-                            {task.objectiveIds.length ? task.objectiveIds.map((objId, idx) => (
-                              <label key={objId} className="flex items-start gap-2 text-sm">
+                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{task.rationale}</p>
+                        <div className="mt-2 space-y-1">
+                          {task.objectiveLabels.slice(0, 3).map((label, idx) => {
+                            const objectiveKey = task.objectiveIds[idx] || `${task.id}-fallback-${idx}`;
+                            return (
+                              <label key={objectiveKey} className="flex items-start gap-2 text-xs">
                                 <input
                                   type="checkbox"
-                                  checked={!!objectiveChecked[objId]}
-                                  onChange={() => setObjectiveChecked((prev) => ({ ...prev, [objId]: !prev[objId] }))}
-                                  className="mt-1"
+                                  checked={!!objectiveChecked[objectiveKey]}
+                                  onChange={() => setObjectiveChecked((prev) => ({ ...prev, [objectiveKey]: !prev[objectiveKey] }))}
+                                  className="mt-0.5"
                                 />
-                                <span className={objectiveChecked[objId] ? 'line-through text-slate-500' : 'text-slate-200'}>{task.objectiveLabels[idx] || `Objective ${idx + 1}`}</span>
+                                <span className={objectiveChecked[objectiveKey] ? 'line-through text-slate-500' : 'text-slate-200'}>{label}</span>
                               </label>
-                            )) : <p className="text-xs text-slate-500">No explicit objective IDs in this block yet.</p>}
-                          </div>
-                        )}
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -432,7 +442,6 @@ const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpd
             <p className="text-sm text-slate-300 mt-2">Next-week auto-blueprint: {weeklyDebrief.nextWeekDirective}</p>
           </div>
         </div>
-      )
 
         <div className="space-y-6">
           <div className="glass-panel p-6 rounded-[2rem]">
