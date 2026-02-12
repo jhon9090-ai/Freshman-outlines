@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline, TrackerState, DailyHabitLog, ItemPath, TrackerAIAnalysis, PastExamResult, ChatMessage, TeachedMaterial } from './types';
+import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline, TrackerState, DailyHabitLog, ItemPath, TrackerAIAnalysis, PastExamResult, ChatMessage, TeachedMaterial, DailyTaskExecutionLog, StudySessionLog } from './types';
 import { generateStudyOutline } from './services/geminiService';
 import InputPanel from './components/InputPanel';
 import StudyView from './components/StudyView';
@@ -148,7 +148,11 @@ export default function App(): React.ReactNode {
 
               teachedMaterials: parsed.teachedMaterials ?? [],
 
-              chatHistory: parsed.chatHistory ?? []
+              chatHistory: parsed.chatHistory ?? [],
+
+              taskExecutionLogs: parsed.taskExecutionLogs ?? [],
+
+              sessionLogs: parsed.sessionLogs ?? []
 
           };
 
@@ -165,6 +169,10 @@ export default function App(): React.ReactNode {
       completionLogs: [],
 
       teachedMaterials: [],
+
+      taskExecutionLogs: [],
+
+      sessionLogs: [],
 
       chatHistory: [],
 
@@ -348,6 +356,35 @@ export default function App(): React.ReactNode {
 
   };
   
+
+  const handleLogTaskExecution = (log: DailyTaskExecutionLog) => {
+
+    setTrackerState(prev => ({
+
+      ...prev,
+
+      taskExecutionLogs: [...(prev.taskExecutionLogs || []), log].slice(-300),
+
+      lastUpdated: new Date().toISOString()
+
+    }));
+
+  };
+
+  const handleLogStudySession = (log: StudySessionLog) => {
+
+    setTrackerState(prev => ({
+
+      ...prev,
+
+      sessionLogs: [...(prev.sessionLogs || []), log].slice(-120),
+
+      lastUpdated: new Date().toISOString()
+
+    }));
+
+  };
+
   const handleUpdateDefaultAdvancedSettings = (newDefaults: AdvancedSettings) => {
       setAppSettings(prev => ({
           ...prev,
@@ -751,6 +788,12 @@ export default function App(): React.ReactNode {
                 trackerState={trackerState} 
                 onUpdateTracker={handleUpdateTracker} 
                 onCacheAnalysis={handleCacheTrackerAnalysis}
+                onLogExam={handleLogExamResult}
+                onSetSchoolDay={handleSetSchoolDay}
+                onUpdateChat={handleUpdateChatHistory}
+                onTeachMentor={handleTeachMentor}
+                onLogTaskExecution={handleLogTaskExecution}
+                onLogStudySession={handleLogStudySession}
                 appSettings={appSettings} 
             />
         ),

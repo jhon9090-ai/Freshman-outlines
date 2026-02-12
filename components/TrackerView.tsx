@@ -1,7 +1,18 @@
-
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { StudyOutline, TrackerState, AppSettings, DailyHabitLog, TrackerAIAnalysis, PastExamResult, ChatMessage, DailyTaskDetail, TeachedMaterial } from '../types';
+import {
+  StudyOutline,
+  TrackerState,
+  AppSettings,
+  DailyHabitLog,
+  TrackerAIAnalysis,
+  PastExamResult,
+  ChatMessage,
+  DailyTaskDetail,
+  TeachedMaterial,
+  DailyTaskExecutionLog,
+  StudySessionLog,
+} from '../types';
 import { generateTrackerAnalysis } from '../services/geminiService';
 import Spinner from './ui/Spinner';
 import StarIcon from './icons/StarIcon';
@@ -10,7 +21,6 @@ import { curriculumData } from '../constants';
 import MentorChatModal from './MentorChatModal';
 import MessageCircleIcon from './icons/MessageCircleIcon';
 import SchoolIcon from './icons/SchoolIcon';
-import ChevronRightIcon from './icons/ChevronRightIcon';
 import InfoIcon from './icons/InfoIcon';
 import UploadIcon from './icons/UploadIcon';
 
@@ -25,374 +35,290 @@ interface TrackerViewProps {
   onSetSchoolDay: (isSchool: boolean) => void;
   onUpdateChat: (newHistory: ChatMessage[]) => void;
   onTeachMentor: (material: TeachedMaterial) => void;
+  onLogTaskExecution: (log: DailyTaskExecutionLog) => void;
+  onLogStudySession: (log: StudySessionLog) => void;
   appSettings: AppSettings;
 }
 
-const getEATDate = () => {
-    return new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Addis_Ababa"}));
+type PlannedTask = DailyTaskDetail & {
+  id: string;
+  subject: string;
+  startMinute: number;
+  endMinute: number;
 };
 
-const countTotalUnits = () => {
-    let total = 0;
-    Object.values(curriculumData).forEach(s => s.themes.forEach(t => total += t.units.length));
-    return total;
+const TRACKER_DAILY_KEY = 'tracker-daily-checks-v2';
+
+const getEATDate = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Addis_Ababa' }));
+const formatTime12h = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+const fmtMinute = (m: number) => formatTime12h(new Date(new Date().setHours(Math.floor(m / 60), m % 60, 0, 0)));
+
+const countTotalUnits = () => Object.values(curriculumData).reduce((a, s) => a + s.themes.reduce((b, t) => b + t.units.length, 0), 0);
+
+const buildPlan = (outlines: StudyOutline[], state: TrackerState, now: Date): PlannedTask[] => {
+  const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
+  const schedule: Record<string, string> = {
+    Sunday: 'Mathematics', Monday: 'Biology', Tuesday: 'Physics', Wednesday: 'Chemistry', Thursday: 'SAT', Friday: 'English', Saturday: 'Revision',
+  };
+  const targetSubject = schedule[weekday] || 'Mathematics';
+  const openMinute = now.getHours() * 60 + now.getMinutes();
+  const sleepMinute = state.isSchoolDay ? 22 * 60 : 23 * 60;
+  const startMinute = Math.min(openMinute + 10, sleepMinute - 120);
+  const available = Math.max(120, sleepMinute - startMinute);
+
+  const examDate = new Date('2026-06-27T00:00:00Z');
+  const daysLeft = Math.max(1, Math.ceil((examDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+
+  const subjectOutlines = outlines.filter(o => o.subject === targetSubject);
+  const curriculumUnits = curriculumData[targetSubject]?.themes.flatMap(t => t.units) || [];
+  const completedUnits = subjectOutlines.filter((o) => {
+    const objectives = (o.mainTopics || []).flatMap((m) => m.subtopics.flatMap((s) => s.learningObjectives));
+    return objectives.length > 0 && o.completedObjectives.length >= objectives.length;
+  }).length;
+  const remainingUnits = Math.max(1, curriculumUnits.length - completedUnits);
+  const unitsPerDay = Math.max(0.3, remainingUnits / daysLeft);
+
+  const candidate = subjectOutlines.find((o) => {
+    const all = (o.mainTopics || []).flatMap((m) => m.subtopics.flatMap((s) => s.learningObjectives));
+    return all.some((obj) => !o.completedObjectives.includes(obj.id));
+  }) || subjectOutlines[0] || outlines[0];
+
+  const nextSubunits = (candidate?.mainTopics || []).flatMap(m =>
+    m.subtopics.filter(s => s.learningObjectives.some(o => !candidate.completedObjectives.includes(o.id))).map(s => ({ topic: m.title, subunit: s.title }))
+  ).slice(0, 4);
+
+  const blockCount = Math.min(6, Math.max(3, Math.ceil(available / 90)));
+  const blockMinutes = Math.floor(available / blockCount);
+
+  const tasks: PlannedTask[] = [];
+  for (let i = 0; i < blockCount; i++) {
+    const start = startMinute + i * blockMinutes;
+    const end = i === blockCount - 1 ? sleepMinute : start + blockMinutes;
+    const next = nextSubunits[i % Math.max(1, nextSubunits.length)];
+    const title = i === blockCount - 1
+      ? `Rapid review + active recall (${targetSubject})`
+      : `${targetSubject}: ${next ? `${next.topic} • ${next.subunit}` : 'Core unit progression'}`;
+    tasks.push({
+      id: `${now.toDateString()}-${i}`,
+      subject: targetSubject,
+      startMinute: start,
+      endMinute: end,
+      task: `${fmtMinute(start)} - ${fmtMinute(end)} • ${title}`,
+      rationale: `Planned from app-open time (${fmtMinute(openMinute)}), current pace, ${remainingUnits} remaining units, and ${daysLeft} days to exam.`,
+      impact: `Completes ~${unitsPerDay.toFixed(2)} unit/day trajectory while covering unfinished sub-units before sleep at ${fmtMinute(sleepMinute)}.`,
+    });
+  }
+  return tasks;
 };
 
-const formatTime12h = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-};
-
-const TaskItem: React.FC<{ task: DailyTaskDetail, index: number }> = ({ task, index }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    return (
-        <div className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isExpanded ? 'bg-sky-500/10 border-sky-500/40 shadow-lg' : 'bg-white/[0.02] border-white/5 hover:border-sky-500/30'}`}>
-            <button 
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex items-center gap-5 p-5 text-left transition-colors group"
-            >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black transition-colors ${index === 0 ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-400 group-hover:bg-sky-500 group-hover:text-white'}`}>{index+1}</div>
-                <span className={`flex-1 text-lg font-medium leading-tight ${index === 0 ? 'text-white font-bold' : 'text-slate-200'}`}>{task.task}</span>
-                <ChevronRightIcon className={`w-5 h-5 text-slate-500 transition-transform ${isExpanded ? 'rotate-90 text-sky-400' : ''}`} />
-            </button>
-            <div className={`accordion-content ${isExpanded ? 'expanded' : ''}`}>
-                <div className="accordion-content-inner p-5 pt-0 space-y-4">
-                    <div className="flex gap-3">
-                        <div className="mt-1"><InfoIcon className="w-4 h-4 text-sky-400" /></div>
-                        <div>
-                            <p className="text-[10px] font-black text-sky-500 uppercase tracking-widest mb-1">Strategic Rationale</p>
-                            <p className="text-slate-300 text-sm leading-relaxed">{task.rationale}</p>
-                        </div>
-                    </div>
-                    <div className="flex gap-3">
-                        <div className="mt-1"><StarIcon className="w-4 h-4 text-amber-400" /></div>
-                        <div>
-                            <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Performance Impact</p>
-                            <p className="text-slate-300 text-sm leading-relaxed">{task.impact}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpdateTracker, onCacheAnalysis, onLogExam, onSetSchoolDay, onUpdateChat, onTeachMentor, appSettings }) => {
+const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpdateTracker, onCacheAnalysis, onLogExam, onSetSchoolDay, onUpdateChat, onTeachMentor, onLogTaskExecution, onLogStudySession, appSettings }) => {
   const [analysis, setAnalysis] = useState<TrackerAIAnalysis | null>(trackerState.cachedAnalysis || null);
   const [isLoading, setIsLoading] = useState(false);
   const [isTeaching, setIsTeaching] = useState(false);
   const [currentTime, setCurrentTime] = useState(getEATDate());
   const [isExamModalOpen, setIsExamModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [startMap, setStartMap] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sessionStartRef = useRef<Date>(getEATDate());
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(getEATDate()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  useEffect(() => { const timer = setInterval(() => setCurrentTime(getEATDate()), 1000); return () => clearInterval(timer); }, []);
+  useEffect(() => { const raw = localStorage.getItem(TRACKER_DAILY_KEY); if (raw) setChecked(JSON.parse(raw)); }, []);
+  useEffect(() => { localStorage.setItem(TRACKER_DAILY_KEY, JSON.stringify(checked)); }, [checked]);
 
-  const totalUnits = useMemo(() => countTotalUnits(), []);
+  const plannedTasks = useMemo(() => buildPlan(outlines, trackerState, sessionStartRef.current), [outlines, trackerState]);
 
   const fetchAnalysis = async () => {
     setIsLoading(true);
     try {
       const result = await generateTrackerAnalysis(outlines, trackerState.habitHistory, appSettings, trackerState);
-      setAnalysis(result);
-      onCacheAnalysis(result);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
+      setAnalysis({ ...result, dailyTasks: plannedTasks });
+      onCacheAnalysis({ ...result, dailyTasks: plannedTasks });
+    } finally { setIsLoading(false); }
   };
 
+  useEffect(() => { fetchAnalysis(); }, [plannedTasks.length, trackerState.examResults.length, trackerState.isSchoolDay, trackerState.teachedMaterials.length]);
+
   useEffect(() => {
-    fetchAnalysis();
-  }, [outlines.length, trackerState.examResults.length, trackerState.isSchoolDay, trackerState.teachedMaterials.length]);
+    return () => {
+      const sleepTime = trackerState.isSchoolDay ? '10:00 PM' : '11:00 PM';
+      const completed = plannedTasks.filter(t => checked[t.id]).length;
+      const plannedMinutes = plannedTasks.reduce((a, t) => a + (t.endMinute - t.startMinute), 0);
+      const sessionHours = Math.max(1 / 60, (getEATDate().getTime() - sessionStartRef.current.getTime()) / 3600000);
+      onLogStudySession({
+        id: `session-${Date.now()}`,
+        openedAt: sessionStartRef.current.toISOString(),
+        closedAt: getEATDate().toISOString(),
+        sleepTime,
+        plannedStudyMinutes: plannedMinutes,
+        completedTaskCount: completed,
+        totalTaskCount: plannedTasks.length,
+        completionRate: plannedTasks.length ? (completed / plannedTasks.length) * 100 : 0,
+        paceTasksPerHour: completed / sessionHours,
+      });
+    };
+  }, [checked, plannedTasks, trackerState.isSchoolDay, onLogStudySession]);
+
+  const handleToggleTask = (task: PlannedTask) => {
+    const nowIso = getEATDate().toISOString();
+    const wasChecked = !!checked[task.id];
+    const nextChecked = { ...checked, [task.id]: !wasChecked };
+    setChecked(nextChecked);
+
+    if (!wasChecked) {
+      const startedAt = startMap[task.id] || nowIso;
+      const completedAt = nowIso;
+      const durationMinutes = Math.max(1, Math.round((new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 60000));
+      onLogTaskExecution({
+        id: `task-log-${task.id}-${Date.now()}`,
+        taskTitle: task.task,
+        subject: task.subject,
+        plannedStart: fmtMinute(task.startMinute),
+        plannedEnd: fmtMinute(task.endMinute),
+        startedAt,
+        completedAt,
+        durationMinutes,
+      });
+    } else {
+      setStartMap((prev) => ({ ...prev, [task.id]: nowIso }));
+    }
+  };
 
   const handleFileTeach = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setIsTeaching(true);
     const reader = new FileReader();
-
     reader.onload = async (event) => {
-        try {
-            let content = '';
-            if (file.type === 'application/pdf') {
-                const arrayBuffer = event.target?.result as ArrayBuffer;
-                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    content += textContent.items.map(item => 'str' in item ? item.str : '').join(' ') + '\n';
-                }
-            } else {
-                content = event.target?.result as string;
-            }
-            
-            onTeachMentor({
-                name: file.name,
-                content,
-                dateAdded: new Date().toISOString()
-            });
-
-            // Brief success feedback could be added here if needed
-        } catch (err) {
-            console.error(err);
-            alert("Failed to process learned material.");
-        } finally {
-            setIsTeaching(false);
-            if (e.target) e.target.value = '';
-        }
+      try {
+        let content = '';
+        if (file.type === 'application/pdf') {
+          const arrayBuffer = event.target?.result as ArrayBuffer;
+          const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            content += textContent.items.map(item => 'str' in item ? item.str : '').join(' ') + '\n';
+          }
+        } else content = event.target?.result as string;
+        onTeachMentor({ name: file.name, content, dateAdded: new Date().toISOString() });
+      } finally {
+        setIsTeaching(false);
+        if (e.target) e.target.value = '';
+      }
     };
-
-    if (file.type === 'application/pdf') reader.readAsArrayBuffer(file);
-    else reader.readAsText(file);
+    if (file.type === 'application/pdf') reader.readAsArrayBuffer(file); else reader.readAsText(file);
   }, [onTeachMentor]);
 
-  const dailyCycle = useMemo(() => {
-    const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-    const startMinutes = 5 * 60 + 30; 
-    const endMinutes = 22 * 60; 
-    
-    if (nowMinutes < startMinutes || nowMinutes >= endMinutes) return { phase: "Biological Rest", progress: 0 };
-    
-    const totalDayMinutes = endMinutes - startMinutes;
-    const progress = ((nowMinutes - startMinutes) / totalDayMinutes) * 100;
-    
-    if (nowMinutes < 7 * 60) return { phase: "Strategy & Routine", progress };
-    
-    if (trackerState.isSchoolDay) {
-        if (nowMinutes < 14 * 60) return { phase: "Academic Session", progress };
-        if (nowMinutes < 15 * 60) return { phase: "Station Reset", progress };
-        return { phase: "Deep Breach Block", progress };
-    } else {
-        if (nowMinutes < 19 * 60) return { phase: "Primary High-Intensity block", progress };
-        return { phase: "Optimization Window", progress };
-    }
-  }, [currentTime, trackerState.isSchoolDay]);
-
-  const countdownData = useMemo(() => {
-    const targetDate = new Date('2026-06-27T00:00:00Z');
-    const diff = targetDate.getTime() - currentTime.getTime();
-    if (diff <= 0) return { days: 0, hours: 0 };
-    return { days: Math.floor(diff / (1000 * 60 * 60 * 24)), hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)), totalSeconds: diff / 1000 };
-  }, [currentTime]);
+  const totalUnits = useMemo(() => countTotalUnits(), []);
+  const completionRate = plannedTasks.length ? (plannedTasks.filter(t => checked[t.id]).length / plannedTasks.length) * 100 : 0;
+  const offTrack = completionRate < 35 && currentTime.getHours() >= 16;
 
   return (
     <div className="w-full max-w-5xl mx-auto p-4 md:p-8 space-y-8 animate-quickFadeIn pb-32">
-      {/* Dynamic Workstation Header */}
-      <div className="glass-panel p-6 border-l-4 border-sky-500 shadow-xl bg-slate-900/40">
-        <div className="flex flex-col sm:flex-row justify-between items-end gap-4 mb-4">
-            <div className="flex-1">
-                <h2 className="text-sm font-black text-sky-500 uppercase tracking-[0.3em] mb-1">Workstation Chronometer</h2>
-                <div className="flex items-center gap-6">
-                    <p className="text-4xl font-black text-white tracking-tighter">{formatTime12h(currentTime)}</p>
-                    <button 
-                        onClick={() => onSetSchoolDay(!trackerState.isSchoolDay)}
-                        className={`flex items-center gap-3 px-4 py-2 rounded-2xl border transition-all shadow-lg active:scale-95 ${trackerState.isSchoolDay ? 'bg-sky-500/20 border-sky-500/50 text-sky-400' : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-white'}`}
-                    >
-                        <SchoolIcon className={`w-5 h-5 ${trackerState.isSchoolDay ? 'animate-pulse' : ''}`} />
-                        <span className="text-xs font-black uppercase tracking-widest">{trackerState.isSchoolDay ? 'SCHOOL MODE' : 'OFF-SCHOOL'}</span>
-                    </button>
-                </div>
+      <div className="glass-panel p-6 border-l-4 border-sky-500 bg-slate-900/40">
+        <div className="flex justify-between items-end gap-4 mb-4">
+          <div>
+            <h2 className="text-sm font-black text-sky-500 uppercase tracking-[0.3em] mb-1">Workstation Chronometer</h2>
+            <div className="flex items-center gap-5">
+              <p className="text-4xl font-black text-white">{formatTime12h(currentTime)}</p>
+              <button onClick={() => onSetSchoolDay(!trackerState.isSchoolDay)} className={`flex items-center gap-2 px-4 py-2 rounded-2xl border ${trackerState.isSchoolDay ? 'bg-sky-500/20 border-sky-500/50 text-sky-300' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                <SchoolIcon className="w-5 h-5" />
+                <span className="text-xs font-black uppercase">{trackerState.isSchoolDay ? 'School Mode' : 'Off-school'}</span>
+              </button>
             </div>
-            <div className="text-right">
-                <span className="inline-block px-4 py-1 bg-sky-500/10 text-sky-400 rounded-full text-[10px] font-black uppercase border border-sky-500/20 mb-2">{dailyCycle.phase}</span>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Efficiency: {Math.round(dailyCycle.progress)}%</p>
-            </div>
+          </div>
+          <p className="text-xs text-slate-400 font-bold">Task completion today: {Math.round(completionRate)}%</p>
         </div>
-        <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full bg-sky-500 transition-all duration-1000 shadow-[0_0_15px_rgba(14,165,233,0.5)]" style={{ width: `${dailyCycle.progress}%` }}></div>
+        <div className="h-6 w-full rounded-2xl overflow-hidden bg-slate-800/80 flex">
+          {plannedTasks.map((task) => {
+            const total = plannedTasks.reduce((a, t) => a + (t.endMinute - t.startMinute), 0) || 1;
+            const width = ((task.endMinute - task.startMinute) / total) * 100;
+            return (
+              <div key={task.id} style={{ width: `${width}%` }} className={`h-full border-r border-slate-900/50 ${checked[task.id] ? 'bg-emerald-500/80' : 'bg-sky-500/50'}`} title={task.task} />
+            );
+          })}
         </div>
       </div>
+
+      {offTrack && (
+        <div className="glass-panel p-4 border border-red-500/40 bg-red-500/10">
+          <p className="text-red-300 font-bold">You are steering off path. Immediate fix: complete the next two shortest blocks now, then run a 15-minute recap before break.</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-            {/* Task Center */}
-            <div className="glass-panel p-10 rounded-[2.5rem] relative overflow-hidden bg-slate-900/30 border-white/5">
-                <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none"><StarIcon className="w-64 h-64 text-sky-500" /></div>
-                <div className="relative z-10">
-                    <div className="flex justify-between items-start mb-8">
-                        <div className="flex flex-col gap-1">
-                            <h3 className="text-xs font-black text-sky-500 uppercase tracking-[0.2em] flex items-center gap-2">
-                                <div className="w-2 h-2 bg-sky-500 rounded-full animate-ping"></div>
-                                Daily Tasks: {currentTime.toLocaleDateString('en-US', { weekday: 'long' })}
-                            </h3>
-                            {trackerState.teachedMaterials.length > 0 && (
-                                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest italic">Adaptive Rigor: {trackerState.teachedMaterials.length} patterns learned</p>
-                            )}
-                        </div>
-                        {analysis?.isHoliday && (
-                             <span className="px-3 py-1 bg-green-500/20 text-green-400 text-[10px] font-black uppercase border border-green-500/40 rounded-full">Strategic Recovery</span>
-                        )}
-                    </div>
-                    
-                    <div className="grid grid-cols-1 gap-4">
-                        {isLoading ? (
-                            <div className="flex items-center gap-4 text-slate-400 p-8 glass-panel rounded-2xl border-dashed">
-                                <Spinner className="w-6 h-6 text-sky-500"/>
-                                <p className="text-lg font-medium animate-pulse italic">Partnering with Brainwave Mentor...</p>
-                            </div>
-                        ) : (
-                            analysis?.dailyTasks.map((task, idx) => (
-                                <TaskItem key={idx} task={task} index={idx} />
-                            ))
-                        )}
-                    </div>
-
-                    <div className="mt-12 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
-                         <div className="flex-1">
-                            <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-3 italic">Growth Catalyst</p>
-                            <p className="text-slate-200 text-lg leading-relaxed font-medium">"{analysis?.growthCatalyst || 'Establishing strategic trajectory...'}"</p>
-                         </div>
-                         <div className="flex flex-col gap-3 flex-shrink-0">
-                            <button 
-                                onClick={() => setIsChatOpen(true)}
-                                className="flex items-center justify-center gap-3 px-8 py-4 bg-sky-500 text-white rounded-2xl font-black text-sm uppercase shadow-2xl shadow-sky-500/40 hover:scale-105 active:scale-95 transition-all"
-                            >
-                                <MessageCircleIcon className="w-5 h-5" />
-                                Consult Mentor
-                            </button>
-                            <button 
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={isTeaching}
-                                className="flex items-center justify-center gap-3 px-8 py-3 bg-slate-800 text-slate-300 rounded-2xl font-black text-[10px] uppercase border border-white/5 hover:border-sky-500/30 hover:text-sky-400 transition-all active:scale-95"
-                            >
-                                {isTeaching ? <Spinner className="w-4 h-4" /> : <UploadIcon className="w-4 h-4" />}
-                                Teach Partner (Exams)
-                            </button>
-                            <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                onChange={handleFileTeach} 
-                                className="hidden" 
-                                accept=".pdf,.txt,.json" 
-                            />
-                         </div>
-                    </div>
-                </div>
+        <div className="lg:col-span-2 space-y-6">
+          <div className="glass-panel p-8 rounded-[2rem] bg-slate-900/30 border-white/5">
+            <div className="flex justify-between mb-5">
+              <h3 className="text-xs font-black text-sky-500 uppercase tracking-[0.2em]">Daily Study Secretary</h3>
+              {analysis?.isHoliday && <span className="text-[10px] px-3 py-1 rounded-full bg-green-500/20 text-green-300">Holiday mode</span>}
             </div>
-
-            {/* Streak Index */}
-            <div className="glass-panel p-8 rounded-[2.5rem] bg-slate-900/30 border-white/5">
-                <div className="flex justify-between items-center mb-8">
-                    <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Consistency Index</h3>
-                    <span className="text-2xl font-black text-sky-400">{trackerState.currentStreak} DAY STREAK</span>
-                </div>
-                <div className="flex gap-3 justify-between overflow-x-auto pb-4 custom-scrollbar">
-                    {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map(d => (
-                        <div key={d} className={`min-w-[42px] aspect-square rounded-xl flex items-center justify-center text-xs font-black transition-all ${d <= trackerState.currentStreak ? 'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white scale-110' : 'bg-slate-800 text-slate-600'}`}>
-                            {d}
-                        </div>
-                    ))}
-                </div>
+            {isLoading ? <div className="flex items-center gap-3"><Spinner className="w-5 h-5" /><p>Planning your day...</p></div> : (
+              <div className="space-y-3">
+                {plannedTasks.map((task, i) => (
+                  <button key={task.id} onClick={() => handleToggleTask(task)} className={`w-full p-4 rounded-2xl text-left border ${checked[task.id] ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-white/10 bg-white/[0.02]'}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`w-6 h-6 mt-1 rounded-full border-2 flex items-center justify-center ${checked[task.id] ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`}>
+                        {checked[task.id] && <span className="text-white text-xs">✓</span>}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-semibold">{i + 1}. {task.task}</p>
+                        <p className="text-xs text-slate-400 mt-1">{task.rationale}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row gap-3">
+              <button onClick={() => setIsChatOpen(true)} className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-sky-500 text-white rounded-2xl font-black text-xs uppercase"><MessageCircleIcon className="w-4 h-4" />Consult Mentor</button>
+              <button onClick={() => fileInputRef.current?.click()} disabled={isTeaching} className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-slate-800 text-slate-200 rounded-2xl font-black text-xs uppercase">{isTeaching ? <Spinner className="w-4 h-4" /> : <UploadIcon className="w-4 h-4" />}Teach Partner</button>
+              <input type="file" ref={fileInputRef} onChange={handleFileTeach} className="hidden" accept=".pdf,.txt,.json" />
             </div>
+          </div>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-8">
-            <div className="glass-panel p-8 rounded-[2.5rem] text-center bg-slate-900/30 border-white/5">
-                <h3 className="text-xs font-black text-slate-500 mb-8 uppercase tracking-[0.3em]">Mastery Level ({totalUnits} Units)</h3>
-                <div className="relative w-48 h-48 mx-auto mb-8">
-                    <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="45" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="12" />
-                        <circle cx="50" cy="50" r="45" fill="transparent" stroke="#0ea5e9" strokeWidth="12"
-                            strokeDasharray={282.7}
-                            strokeDashoffset={282.7 - (282.7 * (analysis?.masteryPercentage || 0) / 100)}
-                            strokeLinecap="round"
-                        />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-5xl font-black text-white tracking-tighter">{Math.round(analysis?.masteryPercentage || 0)}%</span>
-                        <span className="text-[10px] font-black text-slate-500 uppercase mt-1">Conquered</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="glass-panel p-8 rounded-[2.5rem] bg-amber-500/5 border border-amber-500/20 shadow-2xl">
-                <h3 className="text-xs font-black text-amber-500 mb-6 uppercase tracking-[0.2em]">Target: 595 Score Points</h3>
-                <div className="space-y-4">
-                    <button 
-                        onClick={() => setIsExamModalOpen(true)}
-                        className="w-full bg-amber-500 text-slate-950 font-black py-4 rounded-2xl hover:bg-amber-400 transition-all active:scale-95 shadow-xl shadow-amber-500/10"
-                    >
-                        LOG PERFORMANCE DATA
-                    </button>
-                    <div className="p-4 bg-slate-950/40 rounded-2xl border border-white/5">
-                         <p className="text-[10px] font-black text-slate-500 uppercase mb-2 italic">Mathematical Probability</p>
-                         <p className="text-white font-bold leading-tight text-sm">{analysis?.prediction || 'Awaiting metrics.'}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="glass-panel p-8 rounded-[2.5rem] bg-sky-500/5 border border-sky-500/20">
-                <h3 className="text-xs font-black text-sky-400 mb-4 uppercase tracking-[0.2em]">Deadline: June 27, 2026</h3>
-                <div className="flex flex-col gap-1">
-                    <p className="text-3xl font-black text-white tracking-tight">{countdownData.days} Days</p>
-                    <p className="text-xl font-bold text-slate-400 tracking-tight">{countdownData.hours} Hours Remaining</p>
-                </div>
-                <div className="mt-6 h-3 w-full bg-slate-800/50 rounded-full overflow-hidden p-0.5 border border-white/5">
-                    <div className="h-full bg-sky-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (1 - (countdownData.totalSeconds / (1.5 * 365 * 24 * 3600))) * 100)}%` }}></div>
-                </div>
-            </div>
+        <div className="space-y-6">
+          <div className="glass-panel p-6 rounded-[2rem]">
+            <h3 className="text-xs uppercase text-slate-400 font-black mb-4">Mastery ({totalUnits} Units)</h3>
+            <p className="text-4xl font-black text-white">{Math.round(analysis?.masteryPercentage || 0)}%</p>
+            <p className="text-sm text-slate-400 mt-2">{analysis?.prediction || 'Awaiting analysis'}</p>
+          </div>
+          <button onClick={() => setIsExamModalOpen(true)} className="w-full bg-amber-500 text-slate-900 font-black py-4 rounded-2xl">Log Performance Data</button>
+          <div className="glass-panel p-6 rounded-[2rem] border border-sky-500/30">
+            <p className="text-xs uppercase font-black text-sky-400">Path Advisor</p>
+            <p className="text-sm mt-2 text-slate-200">{offTrack ? 'Off-track detected. Prioritize your next unfinished block now.' : (analysis?.pathDeviation || 'On trajectory.')}</p>
+          </div>
         </div>
       </div>
 
-      <LogExamModal 
-        isOpen={isExamModalOpen} 
-        onClose={() => setIsExamModalOpen(false)} 
-        onLog={(res) => { onLogExam(res); setIsExamModalOpen(false); }} 
-      />
-
-      <MentorChatModal 
-        isOpen={isChatOpen} 
-        onClose={() => setIsChatOpen(false)} 
-        outlines={outlines}
-        trackerState={trackerState}
-        onUpdateChat={onUpdateChat}
-        onTeachMentor={onTeachMentor}
-        appSettings={appSettings}
-      />
+      <LogExamModal isOpen={isExamModalOpen} onClose={() => setIsExamModalOpen(false)} onLog={(res) => { onLogExam(res); setIsExamModalOpen(false); }} />
+      <MentorChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} outlines={outlines} trackerState={trackerState} onUpdateChat={onUpdateChat} onTeachMentor={onTeachMentor} appSettings={appSettings} />
     </div>
   );
 };
 
-const LogExamModal: React.FC<{isOpen: boolean, onClose: () => void, onLog: (res: PastExamResult) => void}> = ({isOpen, onClose, onLog}) => {
-    const [subj, setSubj] = useState('Mathematics');
-    const [year, setYear] = useState(2017);
-    const [score, setScore] = useState(0);
+const LogExamModal: React.FC<{ isOpen: boolean; onClose: () => void; onLog: (res: PastExamResult) => void }> = ({ isOpen, onClose, onLog }) => {
+  const [subj, setSubj] = useState('Mathematics');
+  const [year, setYear] = useState(2017);
+  const [score, setScore] = useState(0);
 
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title="LOG PERFORMANCE">
-            <div className="space-y-4">
-                <div>
-                    <label className="block text-xs font-black text-slate-500 uppercase mb-2">Subject Arena</label>
-                    <select value={subj} onChange={e => setSubj(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white outline-none focus:ring-2 focus:ring-sky-500">
-                        {['Mathematics', 'Biology', 'Physics', 'Chemistry', 'SAT', 'English'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-black text-slate-500 uppercase mb-2">Year (E.C.)</label>
-                        <input type="number" min="2000" max="2017" value={year} onChange={e => setYear(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-black text-slate-500 uppercase mb-2">Score (%)</label>
-                        <input type="number" min="0" max="100" value={score} onChange={e => setScore(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white" />
-                    </div>
-                </div>
-                <button 
-                    onClick={() => onLog({ id: Date.now().toString(), subject: subj, yearEC: year, score, dateLogged: getEATDate().toISOString() })}
-                    className="w-full bg-sky-500 text-white font-black py-5 rounded-2xl hover:bg-sky-600 transition-all mt-6 shadow-xl shadow-sky-500/20"
-                >
-                    COMMIT PERFORMANCE DATA
-                </button>
-            </div>
-        </Modal>
-    );
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="LOG PERFORMANCE">
+      <div className="space-y-4">
+        <select value={subj} onChange={e => setSubj(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white">
+          {['Mathematics', 'Biology', 'Physics', 'Chemistry', 'SAT', 'English'].map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <div className="grid grid-cols-2 gap-4">
+          <input type="number" min="2000" max="2017" value={year} onChange={e => setYear(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white" />
+          <input type="number" min="0" max="100" value={score} onChange={e => setScore(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white" />
+        </div>
+        <button onClick={() => onLog({ id: Date.now().toString(), subject: subj, yearEC: year, score, dateLogged: getEATDate().toISOString() })} className="w-full bg-sky-500 text-white font-black py-4 rounded-2xl">Commit Performance Data</button>
+      </div>
+    </Modal>
+  );
 };
 
 export default TrackerView;
