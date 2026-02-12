@@ -212,26 +212,41 @@ export const consultMentor = async (
 ): Promise<string> => {
     const { ai, model } = getAiClient(appSettings);
     const learnedPatterns = trackerState?.teachedMaterials?.map(m => `FILE: ${m.name}\nCONTENT: ${m.content}`).join('\n\n') || "No patterns uploaded.";
-    
-    const systemInstruction = `You are the "Brainwave Strategic Partner". 
-Persona: Decisive, brutally honest, non-biased, collaborative strategist. 
-Invite the user to look at their metrics with you. Use LaTeX and Markdown. 12-hour time.
-Mention specific technical patterns from "Learned Context" below when giving advice.
 
-LEARNED CONTEXT:
-${learnedPatterns}`;
+    const progressContext = allOutlines.slice(0, 10).map(o => `${o.subject} | ${o.title} | completed objectives: ${o.completedObjectives.length}`).join('\n');
+    const conversation = history.slice(-10).map(m => `${m.role.toUpperCase()}: ${m.text}`).join('\n');
 
-    const chat = ai.chats.create({
-        model,
-        config: { systemInstruction },
-        history: history.map(m => ({ role: m.role, parts: [{ text: String(m.text) }] }))
-    });
+    const prompt = `You are the Brainwave Strategic Partner.
+Tone: direct, supportive, practical.
+Give specific actions and explain why in plain language.
+Use markdown and 12-hour times.
+If user asks for schedule/teaching guidance, reference learned patterns when relevant.
+
+LEARNED PATTERNS:
+${learnedPatterns}
+
+TRACKER STATE:
+School day: ${trackerState.isSchoolDay ? 'yes' : 'no'}
+Streak: ${trackerState.currentStreak}
+Exam logs: ${trackerState.examResults.length}
+
+OUTLINE PROGRESS:
+${progressContext || 'No outlines'}
+
+RECENT CHAT:
+${conversation}
+
+USER MESSAGE:
+${userMessage}`;
 
     try {
-        const response = await chat.sendMessage({ message: userMessage });
-        return String(response.text);
+        const response = await ai.models.generateContent({
+            model,
+            contents: prompt,
+        });
+        return String(response.text || 'I am here. Tell me which topic to tackle next.');
     } catch (err) {
-        return "COMMUNICATION LINK SEVERED. Re-sync workstation.";
+        return "Mentor link failed right now. Please retry in a few seconds.";
     }
 };
 

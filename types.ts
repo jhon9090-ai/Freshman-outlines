@@ -223,6 +223,29 @@ export interface TeachedMaterial {
 
 }
 
+export interface DailyTaskExecutionLog {
+  id: string;
+  taskTitle: string;
+  subject: string;
+  plannedStart: string;
+  plannedEnd: string;
+  startedAt: string;
+  completedAt: string;
+  durationMinutes: number;
+}
+
+export interface StudySessionLog {
+  id: string;
+  openedAt: string;
+  closedAt: string;
+  sleepTime: string;
+  plannedStudyMinutes: number;
+  completedTaskCount: number;
+  totalTaskCount: number;
+  completionRate: number;
+  paceTasksPerHour: number;
+}
+
 
 
 export interface TrackerState {
@@ -234,6 +257,10 @@ export interface TrackerState {
   completionLogs: UnitCompletionLog[];
 
   teachedMaterials: TeachedMaterial[];
+
+  taskExecutionLogs?: DailyTaskExecutionLog[];
+
+  sessionLogs?: StudySessionLog[];
 
   currentStreak: number;
 
