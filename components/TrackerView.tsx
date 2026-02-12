@@ -167,8 +167,10 @@ const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpd
   const sessionStartRef = useRef<Date>(getEATDate());
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(getEATDate()), 1000);
-    return () => clearInterval(timer);
+    const raw = localStorage.getItem(TRACKER_DAILY_KEY);
+    if (raw) setChecked(JSON.parse(raw));
+    const rawObj = localStorage.getItem(TRACKER_OBJECTIVE_KEY);
+    if (rawObj) setObjectiveChecked(JSON.parse(rawObj));
   }, []);
 
   useEffect(() => {
@@ -248,6 +250,8 @@ const TrackerView: React.FC<TrackerViewProps> = ({ outlines, trackerState, onUpd
       setIsLoading(false);
     }
   };
+
+  useEffect(() => { fetchAnalysis(); }, [plannedTasks.length, trackerState.examResults.length, trackerState.isSchoolDay, trackerState.teachedMaterials.length]);
 
   useEffect(() => {
     fetchAnalysis();
