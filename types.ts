@@ -27,12 +27,20 @@ export interface MainTopic {
   studyDuration?: number; // in minutes
 }
 
+export interface WorkloadPlan {
+  focusedHours: number; // no breaks/sleep, entered as days:hours and stored in hours
+  calendarDeadline?: string; // ISO datetime
+  studyHoursPerDay?: number;
+  sleepHoursPerDay?: number;
+}
+
 // New type for a unit inside a theme-based outline
 export interface UnitOutline {
   id: string;
   unitTitle: string;
   mainTopics: MainTopic[];
   revisionAssistant?: RevisionAssistant;
+  workloadPlan?: WorkloadPlan;
 }
 
 export interface CurriculumSource {
@@ -55,6 +63,7 @@ export interface StudyOutline {
 
   revisionAssistant: RevisionAssistant;
   completedObjectives: string[];
+  workloadPlan?: WorkloadPlan;
 }
 
 export type PartialStudyOutline = Partial<Omit<StudyOutline, 'id' | 'createdAt'>>;
