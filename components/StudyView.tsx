@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { StudyOutline, MainTopic, RevisionSection, UnitOutline, AppSettings, PartialStudyOutline } from '../types';
+import { StudyOutline, MainTopic, RevisionSection, UnitOutline, AppSettings, PartialStudyOutline, WorkloadPlan } from '../types';
 import { ItemPath } from '../App';
 import { restructureOutline } from '../services/geminiService';
 import ArrowLeftIcon from './icons/ArrowLeftIcon';
@@ -29,6 +29,7 @@ interface StudyViewProps {
   onReorderItem: (outlineId: string, source: { index: number; parentPath: ItemPath; type: string; }, destination: { index: number; parentPath: ItemPath, type: string }) => void;
   onUpdateOutline: (outlineId: string, newOutlineData: PartialStudyOutline) => void;
   onUpdateStudyDuration: (outlineId: string, path: ItemPath, durationInMinutes: number) => void;
+  onUpdateWorkloadPlan: (outlineId: string, workloadPlan: WorkloadPlan, unitId?: string) => void;
 }
 
 type StudyCard = { type: 'maintopic'; data: MainTopic } | { type: 'revision'; data: StudyOutline['revisionAssistant'] };
@@ -40,6 +41,8 @@ const UnitLevelNode: React.FC<{
   isLast: boolean;
   onClick: () => void;
 }> = ({ unit, isComplete, isLast, onClick }) => {
+    const focusedLabel = unit.workloadPlan?.focusedHours ? formatFocusedTime(unit.workloadPlan.focusedHours) : null;
+    const isUnitLate = !!unit.workloadPlan?.calendarDeadline && new Date() > new Date(unit.workloadPlan.calendarDeadline) && (unit.workloadPlan.focusedHours || 0) > 0;
     return (
         <li className="relative pl-12 pb-12">
             {!isLast && <div className="absolute left-[18px] top-5 h-full w-px bg-gradient-to-b from-transparent via-sky-500/30 to-transparent"></div>}
@@ -51,6 +54,9 @@ const UnitLevelNode: React.FC<{
             <button onClick={onClick} className="w-full text-left group transition-transform duration-200 hover:scale-[1.02]">
                 <h4 className={`font-semibold text-2xl group-hover:text-sky-400 transition-colors ${isComplete ? 'text-sky-500' : 'text-slate-100'}`}>{unit.unitTitle}</h4>
                 <p className="text-base text-slate-400 mt-1">{unit.mainTopics.length} main topics</p>
+                {focusedLabel && (
+                  <p className={`text-sm mt-1 font-medium ${isUnitLate ? 'text-red-400' : 'text-slate-300'}`}>Focused time: {focusedLabel}</p>
+                )}
             </button>
         </li>
     );
@@ -328,6 +334,11 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
               </li>
             </ul>
         </main>
+        <WorkloadFloatingCalendar
+          title={outline.title}
+          plan={outline.workloadPlan}
+          onSave={(plan) => onUpdateWorkloadPlan(outline.id, plan)}
+        />
     </div>
   );
 
