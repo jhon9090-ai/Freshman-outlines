@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline, TrackerState, DailyHabitLog, ItemPath, TrackerAIAnalysis, PastExamResult, ChatMessage, TeachedMaterial, DailyTaskExecutionLog, StudySessionLog } from './types';
+import { StudyOutline, AppStatus, AppView, AdvancedSettings, AppSettings, CurriculumSource, MainTopic, SubTopic, LearningObjective, UnitOutline, PartialStudyOutline, TrackerState, DailyHabitLog, ItemPath, TrackerAIAnalysis, PastExamResult, ChatMessage, TeachedMaterial, DailyTaskExecutionLog, StudySessionLog, WorkloadPlan } from './types';
 import { generateStudyOutline } from './services/geminiService';
 import InputPanel from './components/InputPanel';
 import StudyView from './components/StudyView';
@@ -539,6 +539,22 @@ export default function App(): React.ReactNode {
       );
   }, []);
 
+  const handleUpdateWorkloadPlan = useCallback((outlineId: string, workloadPlan: WorkloadPlan, unitId?: string) => {
+    setOutlines(prev =>
+      prev.map(outline => {
+        if (outline.id !== outlineId) return outline;
+        const newOutline = JSON.parse(JSON.stringify(outline));
+        if (newOutline.isThemeOutline && unitId) {
+          const unit = (newOutline.units as UnitOutline[] | undefined)?.find(u => u.id === unitId);
+          if (unit) unit.workloadPlan = workloadPlan;
+        } else {
+          newOutline.workloadPlan = workloadPlan;
+        }
+        return newOutline;
+      })
+    );
+  }, []);
+
   const handleAddOutlineItem = useCallback((
       outlineId: string,
       type: 'mainTopic' | 'subtopic' | 'objective',
@@ -742,6 +758,7 @@ export default function App(): React.ReactNode {
               onReorderItem={handleReorderOutlineItem}
               onUpdateOutline={handleUpdateOutline}
               onUpdateStudyDuration={handleUpdateStudyDuration}
+              onUpdateWorkloadPlan={handleUpdateWorkloadPlan}
             />
         </div>
       );

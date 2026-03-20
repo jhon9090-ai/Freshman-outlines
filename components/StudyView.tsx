@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { StudyOutline, MainTopic, RevisionSection, UnitOutline, AppSettings, PartialStudyOutline } from '../types';
+import { StudyOutline, MainTopic, RevisionSection, UnitOutline, AppSettings, PartialStudyOutline, WorkloadPlan } from '../types';
 import { ItemPath } from '../App';
 import { restructureOutline } from '../services/geminiService';
 import ArrowLeftIcon from './icons/ArrowLeftIcon';
@@ -29,6 +29,7 @@ interface StudyViewProps {
   onReorderItem: (outlineId: string, source: { index: number; parentPath: ItemPath; type: string; }, destination: { index: number; parentPath: ItemPath, type: string }) => void;
   onUpdateOutline: (outlineId: string, newOutlineData: PartialStudyOutline) => void;
   onUpdateStudyDuration: (outlineId: string, path: ItemPath, durationInMinutes: number) => void;
+  onUpdateWorkloadPlan: (outlineId: string, workloadPlan: WorkloadPlan, unitId?: string) => void;
 }
 
 type StudyCard = { type: 'maintopic'; data: MainTopic } | { type: 'revision'; data: StudyOutline['revisionAssistant'] };
@@ -40,6 +41,8 @@ const UnitLevelNode: React.FC<{
   isLast: boolean;
   onClick: () => void;
 }> = ({ unit, isComplete, isLast, onClick }) => {
+    const focusedLabel = unit.workloadPlan?.focusedHours ? formatFocusedTime(unit.workloadPlan.focusedHours) : null;
+    const isUnitLate = !!unit.workloadPlan?.calendarDeadline && new Date() > new Date(unit.workloadPlan.calendarDeadline) && (unit.workloadPlan.focusedHours || 0) > 0;
     return (
         <li className="relative pl-12 pb-12">
             {!isLast && <div className="absolute left-[18px] top-5 h-full w-px bg-gradient-to-b from-transparent via-sky-500/30 to-transparent"></div>}
@@ -51,13 +54,95 @@ const UnitLevelNode: React.FC<{
             <button onClick={onClick} className="w-full text-left group transition-transform duration-200 hover:scale-[1.02]">
                 <h4 className={`font-semibold text-2xl group-hover:text-sky-400 transition-colors ${isComplete ? 'text-sky-500' : 'text-slate-100'}`}>{unit.unitTitle}</h4>
                 <p className="text-base text-slate-400 mt-1">{unit.mainTopics.length} main topics</p>
+                {focusedLabel && (
+                  <p className={`text-sm mt-1 font-medium ${isUnitLate ? 'text-red-400' : 'text-slate-300'}`}>Focused time: {focusedLabel}</p>
+                )}
             </button>
         </li>
     );
 };
 
 
-const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress, appSettings, onUpdateItem, onAddItem, onDeleteItem, onReorderItem, onUpdateOutline, onUpdateStudyDuration }) => {
+const formatFocusedTime = (hours: number) => {
+  const wholeHours = Math.max(0, Math.round(hours));
+  const days = Math.floor(wholeHours / 24);
+  const remHours = wholeHours % 24;
+  return `${days}d : ${remHours}h`;
+};
+
+const toDateTimeLocal = (iso?: string) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const tzOffset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+};
+
+const WorkloadFloatingCalendar: React.FC<{
+  title: string;
+  plan?: WorkloadPlan;
+  onSave: (plan: WorkloadPlan) => void;
+}> = ({ title, plan, onSave }) => {
+  const [focusedDays, setFocusedDays] = useState('0');
+  const [focusedHours, setFocusedHours] = useState('0');
+  const [deadline, setDeadline] = useState('');
+  const [studyHoursPerDay, setStudyHoursPerDay] = useState('6');
+  const [sleepHoursPerDay, setSleepHoursPerDay] = useState('8');
+
+  useEffect(() => {
+    const focused = Math.max(0, Math.round(plan?.focusedHours || 0));
+    setFocusedDays(String(Math.floor(focused / 24)));
+    setFocusedHours(String(focused % 24));
+    setDeadline(toDateTimeLocal(plan?.calendarDeadline));
+    setStudyHoursPerDay(String(plan?.studyHoursPerDay ?? 6));
+    setSleepHoursPerDay(String(plan?.sleepHoursPerDay ?? 8));
+  }, [plan]);
+
+  const focusedTotalHours = (parseInt(focusedDays, 10) || 0) * 24 + (parseInt(focusedHours, 10) || 0);
+  const dailyStudy = Math.max(0.1, parseFloat(studyHoursPerDay) || 0);
+  const dailySleep = Math.max(0, parseFloat(sleepHoursPerDay) || 0);
+  const translatedDays = focusedTotalHours / dailyStudy;
+  const suggestedFinish = deadline ? new Date(new Date(deadline).getTime() + translatedDays * 24 * 60 * 60 * 1000) : null;
+  const hasDeadline = !!deadline;
+  const isLate = hasDeadline && new Date() > new Date(deadline) && focusedTotalHours > 0;
+
+  const save = () => {
+    onSave({
+      focusedHours: focusedTotalHours,
+      calendarDeadline: deadline ? new Date(deadline).toISOString() : undefined,
+      studyHoursPerDay: dailyStudy,
+      sleepHoursPerDay: dailySleep,
+    });
+  };
+
+  return (
+    <div className="fixed right-4 bottom-24 z-40 w-[300px] max-w-[90vw] rounded-xl border border-slate-700 bg-slate-900/95 shadow-2xl p-3 backdrop-blur">
+      <h3 className="text-sm font-semibold text-white">📅 {title} Planner</h3>
+      <p className="text-[11px] text-slate-400 mt-1">Days:Hours = focused study (no sleep/breaks). Calendar deadline = real-world target.</p>
+      <div className={`mt-2 text-xs font-semibold ${isLate ? 'text-red-400' : 'text-sky-300'}`}>
+        Focused load: {formatFocusedTime(focusedTotalHours)}
+      </div>
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <input type="number" min="0" value={focusedDays} onChange={(e) => setFocusedDays(e.target.value)} className="p-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-white" placeholder="Days" />
+        <input type="number" min="0" max="23" value={focusedHours} onChange={(e) => setFocusedHours(e.target.value)} className="p-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-white" placeholder="Hours" />
+      </div>
+      <input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} className="w-full mt-2 p-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-white" />
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <input type="number" min="0.5" step="0.5" value={studyHoursPerDay} onChange={(e) => setStudyHoursPerDay(e.target.value)} className="p-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-white" placeholder="Study h/day" />
+        <input type="number" min="0" max="16" step="0.5" value={sleepHoursPerDay} onChange={(e) => setSleepHoursPerDay(e.target.value)} className="p-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-white" placeholder="Sleep h/day" />
+      </div>
+      <p className="text-[11px] text-slate-400 mt-2">
+        Translation: about <span className="text-slate-200">{translatedDays.toFixed(1)} calendar days</span> at {dailyStudy}h/day study and {dailySleep}h/day sleep.
+      </p>
+      {suggestedFinish && (
+        <p className="text-[11px] text-slate-400 mt-1">If started by deadline, finish around <span className="text-slate-200">{suggestedFinish.toLocaleString()}</span>.</p>
+      )}
+      <button onClick={save} className="w-full mt-2 bg-sky-500 hover:bg-sky-600 text-white text-xs font-semibold py-1.5 rounded">Save Planner</button>
+    </div>
+  );
+};
+
+const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress, appSettings, onUpdateItem, onAddItem, onDeleteItem, onReorderItem, onUpdateOutline, onUpdateStudyDuration, onUpdateWorkloadPlan }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revisionScreen, setRevisionScreen] = useState<RevisionSection | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -330,6 +415,11 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
               </li>
             </ul>
         </main>
+        <WorkloadFloatingCalendar
+          title={outline.title}
+          plan={outline.workloadPlan}
+          onSave={(plan) => onUpdateWorkloadPlan(outline.id, plan)}
+        />
     </div>
   );
 
@@ -445,6 +535,11 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
             </div>
         </footer>
       )}
+      <WorkloadFloatingCalendar
+        title={selectedUnit?.unitTitle || outline.title}
+        plan={selectedUnit?.workloadPlan || outline.workloadPlan}
+        onSave={(plan) => onUpdateWorkloadPlan(outline.id, plan, selectedUnit?.id)}
+      />
       
       <Modal isOpen={timerModalState.isOpen} onClose={() => setTimerModalState({isOpen: false, topic: null})} title="Set Study Time" backdrop={false} variant="solid">
         <div className="space-y-4">
