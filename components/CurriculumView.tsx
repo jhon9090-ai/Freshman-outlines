@@ -19,11 +19,13 @@ import BooksIcon from './icons/BooksIcon';
 import MessageCircleIcon from './icons/MessageCircleIcon';
 import GridIcon from './icons/GridIcon';
 import ListIcon from './icons/ListIcon';
+import TimerIcon from './icons/TimerIcon';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
 
 const CURRICULUM_SUBJECT_VIEW_KEY = 'curriculum-subject-view-preference';
 const CURRICULUM_THEME_VIEW_KEY = 'curriculum-theme-view-preference';
+const CURRICULUM_TIMER_PLAN_KEY = 'curriculum-timer-plan-v1';
 
 
 const subjectIcons: { [key: string]: React.FC<{className?: string}> } = {
@@ -75,6 +77,12 @@ type GenerationContext = {
   source: CurriculumSource;
 }
 
+type TimerPlan = {
+  days: number;
+  hours: number;
+  deadline?: string; // yyyy-mm-dd
+};
+
 // Preference Helpers
 const getPreference = (source: CurriculumSource): 'study' | 'regenerate' | null => {
     const key = `outline-preference-${source.subjectKey}-${source.theme}-${source.unit || ''}`;
@@ -83,6 +91,95 @@ const getPreference = (source: CurriculumSource): 'study' | 'regenerate' | null 
 const setPreference = (source: CurriculumSource, choice: 'study' | 'regenerate') => {
     const key = `outline-preference-${source.subjectKey}-${source.theme}-${source.unit || ''}`;
     localStorage.setItem(key, choice);
+};
+
+const formatDaysHours = (plan?: TimerPlan) => {
+    if (!plan) return null;
+    const days = Math.max(0, Math.floor(plan.days || 0));
+    const hours = Math.max(0, Math.floor(plan.hours || 0));
+    return `${days}d:${hours}h`;
+};
+
+const isPastDeadline = (plan?: TimerPlan) => {
+    if (!plan?.deadline) return false;
+    return new Date(plan.deadline) < new Date(new Date().toDateString());
+};
+
+const CalendarIcon: React.FC<{className?: string}> = ({ className = 'w-4 h-4' }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+);
+
+const TimerPopover: React.FC<{
+    label: string;
+    plan?: TimerPlan;
+    onSave: (plan: TimerPlan) => void;
+}> = ({ label, plan, onSave }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [days, setDays] = useState(String(plan?.days ?? 0));
+    const [hours, setHours] = useState(String(plan?.hours ?? 0));
+    const [deadline, setDeadline] = useState(plan?.deadline || '');
+
+    useEffect(() => {
+        setDays(String(plan?.days ?? 0));
+        setHours(String(plan?.hours ?? 0));
+        setDeadline(plan?.deadline || '');
+    }, [plan]);
+
+    const focusedHours = (parseInt(days, 10) || 0) * 24 + (parseInt(hours, 10) || 0);
+    const translatedDays = (focusedHours / 6).toFixed(1);
+
+    const handleSave = () => {
+        onSave({
+            days: Math.max(0, parseInt(days, 10) || 0),
+            hours: Math.max(0, Math.min(23, parseInt(hours, 10) || 0)),
+            deadline: deadline || undefined,
+        });
+        setIsOpen(false);
+        setShowCalendar(false);
+    };
+
+    return (
+        <div className="relative">
+            <button
+                onClick={(e) => { e.stopPropagation(); setIsOpen(v => !v); }}
+                className="p-2 rounded-lg bg-slate-800/80 text-slate-300 hover:text-white hover:bg-sky-500/20 border border-slate-700 hover:border-sky-500/40 transition-all"
+                title="Set timer"
+            >
+                <TimerIcon className="w-4 h-4" />
+            </button>
+            {isOpen && (
+                <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute right-0 top-11 w-72 rounded-xl border border-slate-700 bg-slate-900/95 p-3 shadow-2xl z-30 backdrop-blur"
+                >
+                    <p className="text-xs text-slate-300 font-semibold mb-2">{label} timer</p>
+                    <div className="grid grid-cols-2 gap-2">
+                        <input value={days} onChange={(e) => setDays(e.target.value)} type="number" min="0" className="w-full p-2 text-xs rounded-md bg-slate-800 border border-slate-700 text-white" placeholder="Days" />
+                        <input value={hours} onChange={(e) => setHours(e.target.value)} type="number" min="0" max="23" className="w-full p-2 text-xs rounded-md bg-slate-800 border border-slate-700 text-white" placeholder="Hours" />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                        <span className="text-[11px] text-slate-400">Approx real-time: {translatedDays} days @ 6h/day</span>
+                        <button onClick={() => setShowCalendar(v => !v)} className="p-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800">
+                            <CalendarIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                    {showCalendar && (
+                        <div className="mt-2">
+                            <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className="w-full p-2 text-xs rounded-md bg-slate-800 border border-slate-700 text-white" />
+                        </div>
+                    )}
+                    <div className="mt-3 flex justify-end gap-2">
+                        <button onClick={() => setIsOpen(false)} className="text-xs px-3 py-1.5 rounded-md bg-slate-700 text-white">Close</button>
+                        <button onClick={handleSave} className="text-xs px-3 py-1.5 rounded-md bg-sky-500 text-white">Save</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 const ProgressDisplay: React.FC<{ completed: number; total: number; percentage: number }> = ({ completed, total, percentage }) => {
@@ -106,7 +203,9 @@ const ThemeItem: React.FC<{
     findExistingOutline: (source: CurriculumSource) => StudyOutline | undefined;
     onSelectTheme: (theme: CurriculumTheme) => void;
     view: 'grid' | 'list';
-}> = ({ theme, subjectKey, findExistingOutline, onSelectTheme, view }) => {
+    timerPlan?: TimerPlan;
+    onSaveTimerPlan: (plan: TimerPlan) => void;
+}> = ({ theme, subjectKey, findExistingOutline, onSelectTheme, view, timerPlan, onSaveTimerPlan }) => {
     const themeProgress = useMemo(() => {
         let completed = 0, total = 0;
         theme.units.forEach(unit => {
@@ -130,21 +229,38 @@ const ThemeItem: React.FC<{
 
     if (view === 'grid') {
         return (
-            <button onClick={() => onSelectTheme(theme)} className="w-full text-left p-4 glass-panel rounded-2xl hover:bg-sky-500/5 hover:border-sky-500/30 transition-all duration-300 flex flex-col justify-between aspect-[4/3] active:scale-[0.98]">
-                <div>
-                    <span className="font-semibold text-xl text-slate-100">{theme.theme}</span>
-                    {theme.class && <span className="text-sm font-normal text-slate-400 block">({theme.class})</span>}
+            <div className="w-full p-4 glass-panel rounded-2xl hover:bg-sky-500/5 hover:border-sky-500/30 transition-all duration-300 flex flex-col justify-between aspect-[4/3]">
+                <div className="flex items-start justify-between gap-2">
+                    <div>
+                        <button onClick={() => onSelectTheme(theme)} className="text-left">
+                            <span className="font-semibold text-xl text-slate-100">{theme.theme}</span>
+                            {theme.class && <span className="text-sm font-normal text-slate-400 block">({theme.class})</span>}
+                            {formatDaysHours(timerPlan) && (
+                                <span className={`text-xs mt-1 inline-block ${isPastDeadline(timerPlan) ? 'text-red-400' : 'text-sky-300'}`}>{formatDaysHours(timerPlan)}</span>
+                            )}
+                        </button>
+                    </div>
+                    <TimerPopover label={theme.theme} plan={timerPlan} onSave={onSaveTimerPlan} />
                 </div>
                 {themeProgress && <ProgressDisplay {...themeProgress} />}
-            </button>
+            </div>
         );
     }
 
     return (
-        <button onClick={() => onSelectTheme(theme)} className="w-full text-left p-4 sm:p-6 glass-panel rounded-2xl hover:bg-sky-500/5 hover:border-sky-500/30 transition-all duration-300 flex justify-between items-center active:scale-[0.99]">
-            <div><span className="font-semibold text-2xl text-slate-100">{theme.theme}</span>{theme.class && <span className="text-base font-normal text-slate-400 ml-3">({theme.class})</span>}</div>
+        <div className="w-full text-left p-4 sm:p-6 glass-panel rounded-2xl hover:bg-sky-500/5 hover:border-sky-500/30 transition-all duration-300 flex justify-between items-center">
+            <button onClick={() => onSelectTheme(theme)} className="flex-1 text-left">
+                <div className="flex items-center gap-2">
+                    <span className="font-semibold text-2xl text-slate-100">{theme.theme}</span>
+                    {theme.class && <span className="text-base font-normal text-slate-400 ml-1">({theme.class})</span>}
+                    {formatDaysHours(timerPlan) && (
+                        <span className={`text-sm font-semibold ${isPastDeadline(timerPlan) ? 'text-red-400' : 'text-sky-300'}`}>{formatDaysHours(timerPlan)}</span>
+                    )}
+                </div>
+            </button>
             <div className="flex items-center gap-4">{themeProgress && <ProgressDisplay {...themeProgress} />}<ChevronRightIcon className="w-8 h-8 text-slate-500" /></div>
-        </button>
+            <div className="ml-3"><TimerPopover label={theme.theme} plan={timerPlan} onSave={onSaveTimerPlan} /></div>
+        </div>
     );
 };
 
@@ -159,7 +275,9 @@ const UnitItem: React.FC<{
     isReadingFile: boolean;
     onUploadClick: () => void;
     onAiClick: () => void;
-}> = ({ unit, subjectKey, theme, findExistingOutline, toggleGenerationOptions, buildContext, activeGenerationKey, isReadingFile, onUploadClick, onAiClick }) => {
+    timerPlan?: TimerPlan;
+    onSaveTimerPlan: (plan: TimerPlan) => void;
+}> = ({ unit, subjectKey, theme, findExistingOutline, toggleGenerationOptions, buildContext, activeGenerationKey, isReadingFile, onUploadClick, onAiClick, timerPlan, onSaveTimerPlan }) => {
     const source = { subjectKey: subjectKey, theme: theme.theme, unit: unit.unit };
     const outlineForUnit = findExistingOutline(source);
     
@@ -177,15 +295,19 @@ const UnitItem: React.FC<{
     
     return (
         <li>
-            <button onClick={() => toggleGenerationOptions(unitKey, unitContext)} className="w-full text-left p-4 rounded-lg hover:bg-sky-500/10 transition-colors flex justify-between items-center">
+            <div className="w-full text-left p-4 rounded-lg hover:bg-sky-500/10 transition-colors flex justify-between items-center">
                 <div>
                     {outlineForUnit && <span className="w-2.5 h-2.5 bg-green-400 rounded-full mr-4 inline-block ring-4 ring-green-400/20" title="Outline exists"></span>}
-                    <span className="text-slate-200 text-lg">{unit.unit}</span>
+                    <button onClick={() => toggleGenerationOptions(unitKey, unitContext)} className="text-slate-200 text-lg">{unit.unit}</button>
+                    {formatDaysHours(timerPlan) && (
+                        <span className={`ml-3 text-xs font-semibold ${isPastDeadline(timerPlan) ? 'text-red-400' : 'text-sky-300'}`}>{formatDaysHours(timerPlan)}</span>
+                    )}
                 </div>
                 <div className="flex items-center gap-4">
                     {progress && <ProgressDisplay {...progress} />}
+                    <TimerPopover label={unit.unit} plan={timerPlan} onSave={onSaveTimerPlan} />
                 </div>
-            </button>
+            </div>
             <div className={`accordion-content ${activeGenerationKey === unitKey ? 'expanded' : ''}`}>
                 <div className="accordion-content-inner">
                     <GenerationOptions 
@@ -211,10 +333,26 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
   
   const [subjectView, setSubjectView] = useState<'grid' | 'list'>(() => (localStorage.getItem(CURRICULUM_SUBJECT_VIEW_KEY) as 'grid' | 'list') || 'grid');
   const [themeView, setThemeView] = useState<'grid' | 'list'>(() => (localStorage.getItem(CURRICULUM_THEME_VIEW_KEY) as 'grid' | 'list') || 'list');
+  const [timerPlans, setTimerPlans] = useState<Record<string, TimerPlan>>(() => {
+    try {
+      const saved = localStorage.getItem(CURRICULUM_TIMER_PLAN_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
 
   useEffect(() => { localStorage.setItem(CURRICULUM_SUBJECT_VIEW_KEY, subjectView); }, [subjectView]);
   useEffect(() => { localStorage.setItem(CURRICULUM_THEME_VIEW_KEY, themeView); }, [themeView]);
+  useEffect(() => { localStorage.setItem(CURRICULUM_TIMER_PLAN_KEY, JSON.stringify(timerPlans)); }, [timerPlans]);
+
+  const getTimerKey = useCallback((source: CurriculumSource) => `${source.subjectKey}::${source.theme}::${source.unit || '__theme__'}`, []);
+  const saveTimerPlan = useCallback((source: CurriculumSource, plan: TimerPlan) => {
+    const key = getTimerKey(source);
+    setTimerPlans(prev => ({ ...prev, [key]: plan }));
+  }, [getTimerKey]);
+  const findTimerPlan = useCallback((source: CurriculumSource) => timerPlans[getTimerKey(source)], [timerPlans, getTimerKey]);
 
 
   const outlinesBySource = useMemo(() => {
@@ -403,7 +541,16 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
             </header>
             <div className={`flex-1 overflow-y-auto pr-2 ${themeView === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-4'}`}>
                 {subject.themes.map((theme, index) => (
-                    <ThemeItem key={index} theme={theme} subjectKey={selectedSubjectKey!} findExistingOutline={findExistingOutline} onSelectTheme={setSelectedTheme} view={themeView} />
+                    <ThemeItem
+                        key={index}
+                        theme={theme}
+                        subjectKey={selectedSubjectKey!}
+                        findExistingOutline={findExistingOutline}
+                        onSelectTheme={setSelectedTheme}
+                        view={themeView}
+                        timerPlan={findTimerPlan({ subjectKey: selectedSubjectKey!, theme: theme.theme, unit: '' })}
+                        onSaveTimerPlan={(plan) => saveTimerPlan({ subjectKey: selectedSubjectKey!, theme: theme.theme, unit: '' }, plan)}
+                    />
                 ))}
             </div>
           </div>
@@ -436,6 +583,8 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
                             isReadingFile={isFileReading}
                             onUploadClick={() => fileInputRef.current?.click()}
                             onAiClick={handleGenerateWithAi}
+                            timerPlan={findTimerPlan({ subjectKey: selectedSubjectKey, theme: selectedTheme.theme, unit: unit.unit })}
+                            onSaveTimerPlan={(plan) => saveTimerPlan({ subjectKey: selectedSubjectKey, theme: selectedTheme.theme, unit: unit.unit }, plan)}
                         />
                     ))}
                 </ul>

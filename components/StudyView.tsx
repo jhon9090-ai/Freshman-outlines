@@ -55,8 +55,6 @@ const UnitLevelNode: React.FC<{
         </li>
     );
 };
-
-
 const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress, appSettings, onUpdateItem, onAddItem, onDeleteItem, onReorderItem, onUpdateOutline, onUpdateStudyDuration }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [revisionScreen, setRevisionScreen] = useState<RevisionSection | null>(null);
@@ -445,7 +443,6 @@ const StudyView: React.FC<StudyViewProps> = ({ outline, onBack, onUpdateProgress
             </div>
         </footer>
       )}
-      
       <Modal isOpen={timerModalState.isOpen} onClose={() => setTimerModalState({isOpen: false, topic: null})} title="Set Study Time" backdrop={false} variant="solid">
         <div className="space-y-4">
             <p className="text-sm text-slate-400">Set an estimated time for the topic: <strong className="text-slate-200">{timerModalState.topic?.title}</strong></p>
