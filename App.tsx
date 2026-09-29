@@ -15,6 +15,7 @@ import ZapIcon from './components/icons/ZapIcon';
 import StarIcon from './components/icons/StarIcon';
 import BookmarkIcon from './components/icons/BookmarkIcon';
 import ChartIcon from './components/icons/ChartIcon';
+import Modal from './components/ui/Modal';
 
 
 const SETTINGS_STORAGE_KEY = 'app-settings';
@@ -86,6 +87,43 @@ const BottomNavBar: React.FC<{
   );
 };
 
+const timetable = [
+  ['2:00–2:50', 'Critical Thinking', 'Physical Fitness', 'English (1)', 'History', '—'],
+  ['3:00–3:50', 'Critical Thinking', 'Physical Fitness', 'English (1)', 'Geography', '—'],
+  ['4:00–4:50', 'Mathematics', 'Psychology', 'English (2)', '—', '—'],
+  ['5:00–5:50', 'Mathematics', 'Psychology', 'English (2)', '—', '—'],
+  ['7:30–8:20', 'General Physics', 'English (1)', 'Mathematics', 'Physics', 'Geography'],
+  ['8:30–9:20', 'General Psychology', 'English (2)', 'Critical Thinking', 'Physics', 'Geography'],
+  ['9:30–10:20', '—', '—', '—', '—', 'History'],
+  ['10:30–11:20', '—', '—', '—', '—', 'History'],
+];
+
+const TimetableModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => (
+  <Modal isOpen={isOpen} onClose={onClose} title="1st Semester Timetable" size="xl" variant="solid">
+    <div className="overflow-x-auto rounded-lg border border-slate-700">
+      <table className="w-full min-w-[680px] border-collapse text-left text-sm text-slate-200">
+        <thead className="bg-slate-800/80 text-slate-100">
+          <tr>
+            {['Period', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(heading => (
+              <th key={heading} className="border-b border-r border-slate-700 px-3 py-2.5 font-bold last:border-r-0">{heading}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {timetable.map(([period, ...subjects]) => (
+            <tr key={period} className="bg-slate-950/40">
+              <th scope="row" className="border-r border-t border-slate-700 px-3 py-2.5 font-semibold text-slate-100">{period}</th>
+              {subjects.map((subject, index) => (
+                <td key={`${period}-${index}`} className="border-r border-t border-slate-700 px-3 py-2.5 last:border-r-0">{subject}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </Modal>
+);
+
 
 export default function App(): React.ReactNode {
   const [status, setStatus] = useState<AppStatus>('idle');
@@ -107,6 +145,7 @@ export default function App(): React.ReactNode {
   const [selectedSubjectKey, setSelectedSubjectKey] = useState<string | null>(null);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTimetableOpen, setIsTimetableOpen] = useState(false);
   
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
       try {
@@ -821,9 +860,15 @@ export default function App(): React.ReactNode {
         <div className="flex flex-col items-center justify-start w-full h-full p-4 md:p-8 overflow-x-hidden">
             <div className={`w-full max-w-5xl h-full flex flex-col transition-all duration-300 ${selectedSubjectKey && view === 'curriculum' ? 'max-w-full' : ''}`}>
                  <header className={`transition-all duration-500 ease-in-out overflow-hidden ${view === 'study' ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'}`}>
-                    <div className="w-full text-center mb-4 md:mb-12">
-                        <h1 className="text-4xl lg:text-5xl font-bold text-white bg-gradient-to-b from-white to-slate-400 text-transparent bg-clip-text">
+                    <div className="relative w-full text-center mb-4 md:mb-12">
+                        {view === 'curriculum' && !selectedSubjectKey && (
+                          <button onClick={() => setIsTimetableOpen(true)} className="absolute left-0 top-1/2 -translate-y-1/2 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-300 transition-colors hover:border-sky-500/50 hover:bg-sky-500/10 hover:text-white">
+                            Timetable
+                          </button>
+                        )}
+                        <h1 className="relative inline-block text-4xl lg:text-5xl font-bold text-white bg-gradient-to-b from-white to-slate-400 text-transparent bg-clip-text">
                           Intelligent Outlines
+                          <span className="absolute -right-16 -top-3 rotate-[-13deg] whitespace-nowrap font-serif text-sm font-semibold italic text-sky-300 sm:-right-20 sm:-top-4 sm:text-base">Freshman Edition</span>
                         </h1>
                     </div>
                 </header>
@@ -875,13 +920,14 @@ export default function App(): React.ReactNode {
             onSettingsClick={() => setIsSettingsOpen(true)}
           />
         </div>
-        <SettingsPanel 
+                <SettingsPanel
             isOpen={isSettingsOpen}
             onClose={() => setIsSettingsOpen(false)}
             appSettings={appSettings}
             onAppSettingsChange={setAppSettings}
             onClearAllData={handleDeleteAllOutlines}
-        />
+                />
+                <TimetableModal isOpen={isTimetableOpen} onClose={() => setIsTimetableOpen(false)} />
     </div>
   );
 }
