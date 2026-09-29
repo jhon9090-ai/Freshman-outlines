@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { AdvancedSettings, AppSettings, StudyOutline, SubTopic, MCQ, LearningObjective, ExamAnalysis, MainTopic, UnitOutline, CurriculumSource, TrackerState, DailyHabitLog, TrackerAIAnalysis, ChatMessage } from '../types';
-import { curriculumData } from '../constants';
+import { curriculumData, SUBJECT_ORDER } from '../constants';
 
 // --- UTILITY ---
 /**
@@ -111,11 +111,10 @@ export const generateTrackerAnalysis = async (
     const dayOfWeek = nowEAT.toLocaleDateString('en-US', { weekday: 'long' });
     const holiday = getEthiopianHolidayLabel(nowEAT);
 
-    const schedule: Record<string, string> = {
-        'Sunday': 'Mathematics', 'Monday': 'Biology', 'Tuesday': 'Physics', 
-        'Wednesday': 'Chemistry', 'Thursday': 'SAT', 'Friday': 'English', 'Saturday': 'Revision/Consolidation'
-    };
-    const currentSubject = schedule[dayOfWeek];
+    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const currentSubject = dayOfWeek === 'Saturday'
+        ? 'Revision/Consolidation'
+        : SUBJECT_ORDER[weekdays.indexOf(dayOfWeek) % SUBJECT_ORDER.length] || SUBJECT_ORDER[0];
 
     if (holiday) {
         return {
