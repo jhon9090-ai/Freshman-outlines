@@ -72,15 +72,7 @@ export const curriculumData: CurriculumData = {
     'Population of Ethiopia and the Horn',
     'Economic Activities in Ethiopia',
   ]) },
-  History: { title: 'HISTORY OF ETHIOPIA AND THE HORN', themes: units([
-    'Unit One',
-    'Unit Two',
-    'Unit Three',
-    'Unit Four',
-    'Unit Five',
-    'Unit Six',
-    'Unit Seven',
-  ]) },
+  History: { title: 'HISTORY', themes: units(['Historical Foundations', 'Peoples & Cultures', 'Ancient/Medieval States', '13th–16th C.', '16th–18th C.', '1800–1941', '1941–1995']) },
   Logic: { title: 'LOGIC', themes: units([
     'Introducing Philosophy',
     'Arguments',

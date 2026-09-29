@@ -297,15 +297,15 @@ const UnitItem: React.FC<{
     
     return (
         <li>
-            <div className="w-full text-left p-4 rounded-lg hover:bg-sky-500/10 transition-colors flex justify-between items-center">
-                <div>
+            <div className="flex w-full flex-col gap-3 rounded-lg p-4 text-left transition-colors hover:bg-sky-500/10 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                     {outlineForUnit && <span className="w-2.5 h-2.5 bg-green-400 rounded-full mr-4 inline-block ring-4 ring-green-400/20" title="Outline exists"></span>}
-                    <button onClick={() => toggleGenerationOptions(unitKey, unitContext)} className="text-slate-200 text-lg">{unit.unit}</button>
+                    <button onClick={() => toggleGenerationOptions(unitKey, unitContext)} className="text-left text-lg text-slate-200">{unit.unit}</button>
                     {formatDaysHours(timerPlan) && (
                         <span className={`ml-3 text-xs font-semibold ${isPastDeadline(timerPlan) ? 'text-red-400' : 'text-sky-300'}`}>{formatDaysHours(timerPlan)}</span>
                     )}
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex shrink-0 self-end items-center gap-4 sm:self-auto">
                     {progress && <ProgressDisplay {...progress} />}
                     <TimerPopover label={unit.unit} plan={timerPlan} onSave={onSaveTimerPlan} />
                 </div>
