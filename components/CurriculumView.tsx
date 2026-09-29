@@ -35,8 +35,8 @@ const subjectIcons: { [key: string]: React.FC<{className?: string}> } = {
   'Physics': MagnetIcon,
   'Geography': AtomIcon,
   'History': BooksIcon,
-  'Critical Thinking': BrainIcon,
-  'English': MessageCircleIcon,
+  'Logic & Critical Thinking': BrainIcon,
+  'Communicative English': MessageCircleIcon,
   'Physical Fitness': SchoolIcon,
 };
 
