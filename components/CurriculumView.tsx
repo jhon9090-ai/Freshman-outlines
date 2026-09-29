@@ -17,6 +17,7 @@ import MagnetIcon from './icons/MagnetIcon';
 import AtomIcon from './icons/AtomIcon';
 import BooksIcon from './icons/BooksIcon';
 import MessageCircleIcon from './icons/MessageCircleIcon';
+import SchoolIcon from './icons/SchoolIcon';
 import GridIcon from './icons/GridIcon';
 import ListIcon from './icons/ListIcon';
 import TimerIcon from './icons/TimerIcon';
@@ -30,11 +31,13 @@ const CURRICULUM_TIMER_PLAN_KEY = 'curriculum-timer-plan-v1';
 
 const subjectIcons: { [key: string]: React.FC<{className?: string}> } = {
   'Mathematics': SigmaIcon,
-  'Biology': BrainIcon,
+  'Psychology': BrainIcon,
   'Physics': MagnetIcon,
-  'Chemistry': AtomIcon,
-  'SAT': BooksIcon,
-  'English': MessageCircleIcon,
+  'Geography': AtomIcon,
+  'History': BooksIcon,
+  'Logic & Critical Thinking': BrainIcon,
+  'Communicative English': MessageCircleIcon,
+  'Physical Fitness': SchoolIcon,
 };
 
 interface GenerationOptionsProps {
@@ -346,6 +349,11 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
   useEffect(() => { localStorage.setItem(CURRICULUM_SUBJECT_VIEW_KEY, subjectView); }, [subjectView]);
   useEffect(() => { localStorage.setItem(CURRICULUM_THEME_VIEW_KEY, themeView); }, [themeView]);
   useEffect(() => { localStorage.setItem(CURRICULUM_TIMER_PLAN_KEY, JSON.stringify(timerPlans)); }, [timerPlans]);
+  useEffect(() => {
+    if (selectedSubjectKey && !selectedTheme) {
+      setSelectedTheme(curriculumData[selectedSubjectKey]?.themes[0] || null);
+    }
+  }, [selectedSubjectKey, selectedTheme]);
 
   const getTimerKey = useCallback((source: CurriculumSource) => `${source.subjectKey}::${source.theme}::${source.unit || '__theme__'}`, []);
   const saveTimerPlan = useCallback((source: CurriculumSource, plan: TimerPlan) => {
@@ -508,12 +516,12 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
             {SUBJECT_ORDER.map(key => {
                 const Icon = subjectIcons[key];
                 return subjectView === 'grid' ? (
-                    <button key={key} onClick={() => setSelectedSubjectKey(key)} className="aspect-square glass-panel rounded-2xl flex flex-col items-center justify-center gap-3 text-center p-3 hover:bg-sky-500/10 hover:border-sky-500/30 transition-all active:scale-95">
+                    <button key={key} onClick={() => { setSelectedSubjectKey(key); setSelectedTheme(curriculumData[key].themes[0]); }} className="aspect-square glass-panel rounded-2xl flex flex-col items-center justify-center gap-3 text-center p-3 hover:bg-sky-500/10 hover:border-sky-500/30 transition-all active:scale-95">
                         {Icon && <Icon className="w-12 h-12 text-sky-400"/>}
                         <span className="font-semibold text-lg text-slate-100">{key}</span>
                     </button>
                 ) : (
-                   <button key={key} onClick={() => setSelectedSubjectKey(key)} className="w-full text-left p-4 glass-panel rounded-xl hover:bg-sky-500/5 hover:border-sky-500/30 transition-all duration-300 flex justify-between items-center active:scale-[0.99]">
+                   <button key={key} onClick={() => { setSelectedSubjectKey(key); setSelectedTheme(curriculumData[key].themes[0]); }} className="w-full text-left p-4 glass-panel rounded-xl hover:bg-sky-500/5 hover:border-sky-500/30 transition-all duration-300 flex justify-between items-center active:scale-[0.99]">
                         <div className="flex items-center gap-4">
                             {Icon && <Icon className="w-8 h-8 text-sky-400"/>}
                             <span className="font-semibold text-xl text-slate-100">{key}</span>
@@ -562,10 +570,10 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
         {selectedTheme && selectedSubjectKey && (
           <div className="h-full flex flex-col">
             <header className="flex-shrink-0 mb-6 flex items-center gap-4">
-              <button onClick={handleBackToThemes} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full"><ArrowLeftIcon className="w-6 h-6"/></button>
+              <button onClick={handleBackToSubjects} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full"><ArrowLeftIcon className="w-6 h-6"/></button>
               <div>
-                <h2 className="text-3xl md:text-4xl font-bold text-slate-100">{selectedTheme.theme}</h2>
-                {selectedTheme.class && <p className="text-lg text-slate-400">({selectedTheme.class})</p>}
+                <h2 className="text-3xl md:text-4xl font-bold text-slate-100">{curriculumData[selectedSubjectKey].title}</h2>
+                <p className="text-lg text-slate-400">Units</p>
               </div>
             </header>
              <div className="flex-1 overflow-y-auto pr-2 glass-panel rounded-2xl p-4">

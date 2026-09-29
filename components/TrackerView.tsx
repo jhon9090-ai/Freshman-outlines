@@ -17,7 +17,7 @@ import {
 import { generateTrackerAnalysis } from '../services/geminiService';
 import Spinner from './ui/Spinner';
 import Modal from './ui/Modal';
-import { curriculumData } from '../constants';
+import { curriculumData, SUBJECT_ORDER } from '../constants';
 import MentorChatModal from './MentorChatModal';
 import MessageCircleIcon from './icons/MessageCircleIcon';
 import SchoolIcon from './icons/SchoolIcon';
@@ -76,10 +76,8 @@ const estimateTeachQuality = (material: TeachedMaterial): TeachQuality => {
 
 const buildPlan = (outlines: StudyOutline[], state: TrackerState, now: Date, carryoverMinutes: number): PlannedTask[] => {
   const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
-  const schedule: Record<string, string> = {
-    Sunday: 'Mathematics', Monday: 'Biology', Tuesday: 'Physics', Wednesday: 'Chemistry', Thursday: 'SAT', Friday: 'English', Saturday: 'Revision',
-  };
-  const targetSubject = schedule[weekday] || 'Mathematics';
+  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const targetSubject = SUBJECT_ORDER[weekdays.indexOf(weekday) % SUBJECT_ORDER.length] || SUBJECT_ORDER[0];
   const openMinute = now.getHours() * 60 + now.getMinutes();
   const sleepMinute = state.isSchoolDay ? 22 * 60 : 23 * 60;
   const startMinute = Math.min(openMinute + 10, sleepMinute - 120);
@@ -483,7 +481,7 @@ const LogExamModal: React.FC<{ isOpen: boolean; onClose: () => void; onLog: (res
     <Modal isOpen={isOpen} onClose={onClose} title="LOG PERFORMANCE" size="md">
       <div className="space-y-4">
         <select value={subj} onChange={(e) => setSubj(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white">
-          {['Mathematics', 'Biology', 'Physics', 'Chemistry', 'SAT', 'English'].map((s) => <option key={s} value={s}>{s}</option>)}
+          {SUBJECT_ORDER.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <div className="grid grid-cols-2 gap-4">
           <input type="number" min="2000" max="2017" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white" />
