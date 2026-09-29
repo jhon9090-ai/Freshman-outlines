@@ -3,8 +3,7 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { AdvancedSettings, CurriculumTheme, CurriculumUnit, StudyOutline, CurriculumSource } from '../types';
-import { curriculumData } from '../constants';
-import { SUBJECT_ORDER } from '../constants';
+import { ADDITIONAL_SUBJECTS, curriculumData, SUBJECT_ORDER } from '../constants';
 import Modal from './ui/Modal';
 import Spinner from './ui/Spinner';
 import UploadIcon from './icons/UploadIcon';
@@ -35,8 +34,8 @@ const subjectIcons: { [key: string]: React.FC<{className?: string}> } = {
   'Physics': MagnetIcon,
   'Geography': AtomIcon,
   'History': BooksIcon,
-  'Logic & Critical Thinking': BrainIcon,
-  'Communicative English': MessageCircleIcon,
+  'Logic': BrainIcon,
+  'English': MessageCircleIcon,
   'Physical Fitness': SchoolIcon,
 };
 
@@ -333,6 +332,7 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
   const [isFileReading, setIsFileReading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedTheme, setSelectedTheme] = useState<CurriculumTheme | null>(null);
+  const [showAdditionalSubjects, setShowAdditionalSubjects] = useState(false);
   
   const [subjectView, setSubjectView] = useState<'grid' | 'list'>(() => (localStorage.getItem(CURRICULUM_SUBJECT_VIEW_KEY) as 'grid' | 'list') || 'grid');
   const [themeView, setThemeView] = useState<'grid' | 'list'>(() => (localStorage.getItem(CURRICULUM_THEME_VIEW_KEY) as 'grid' | 'list') || 'list');
@@ -498,6 +498,8 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
   };
   
   const activeView = selectedTheme ? 'units' : selectedSubjectKey ? 'themes' : 'subjects';
+  const primarySubjects = SUBJECT_ORDER.filter(key => !ADDITIONAL_SUBJECTS.includes(key));
+  const visibleGridSubjects = showAdditionalSubjects ? SUBJECT_ORDER : primarySubjects;
 
   return (
     <div className="relative w-full h-full">
@@ -513,7 +515,7 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
             </div>
         </div>
         <div className={`max-w-6xl mx-auto px-4 ${subjectView === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6' : 'space-y-3'}`}>
-            {SUBJECT_ORDER.map(key => {
+            {(subjectView === 'grid' ? visibleGridSubjects : SUBJECT_ORDER).map(key => {
                 const Icon = subjectIcons[key];
                 return subjectView === 'grid' ? (
                     <button key={key} onClick={() => { setSelectedSubjectKey(key); setSelectedTheme(curriculumData[key].themes[0]); }} className="aspect-square glass-panel rounded-2xl flex flex-col items-center justify-center gap-3 text-center p-3 hover:bg-sky-500/10 hover:border-sky-500/30 transition-all active:scale-95">
@@ -530,6 +532,16 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({ onGenerate, outlines, o
                    </button>
                 );
             })}
+            {subjectView === 'grid' && (
+                <button
+                    onClick={() => setShowAdditionalSubjects(show => !show)}
+                    aria-expanded={showAdditionalSubjects}
+                    className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-6 flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm font-semibold text-slate-300 transition-colors hover:border-sky-500/40 hover:bg-sky-500/10 hover:text-white"
+                >
+                    <span>{showAdditionalSubjects ? 'Hide additional subjects' : 'Show additional subjects'}</span>
+                    <ChevronRightIcon className={`w-5 h-5 transition-transform ${showAdditionalSubjects ? 'rotate-90' : ''}`} />
+                </button>
+            )}
         </div>
       </div>
 
