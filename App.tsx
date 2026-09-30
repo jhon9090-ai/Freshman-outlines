@@ -15,6 +15,7 @@ import ZapIcon from './components/icons/ZapIcon';
 import StarIcon from './components/icons/StarIcon';
 import BookmarkIcon from './components/icons/BookmarkIcon';
 import ChartIcon from './components/icons/ChartIcon';
+import Modal from './components/ui/Modal';
 
 
 const SETTINGS_STORAGE_KEY = 'app-settings';
@@ -86,6 +87,43 @@ const BottomNavBar: React.FC<{
   );
 };
 
+const timetable = [
+  ['2:00–2:50', 'Critical Thinking', 'Physical Fitness', 'English (1)', 'History', '—'],
+  ['3:00–3:50', 'Critical Thinking', 'Physical Fitness', 'English (1)', 'Geography', '—'],
+  ['4:00–4:50', 'Mathematics', 'Psychology', 'English (2)', '—', '—'],
+  ['5:00–5:50', 'Mathematics', 'Psychology', 'English (2)', '—', '—'],
+  ['7:30–8:20', 'General Physics', 'English (1)', 'Mathematics', 'Physics', 'Geography'],
+  ['8:30–9:20', 'General Psychology', 'English (2)', 'Critical Thinking', 'Physics', 'Geography'],
+  ['9:30–10:20', '—', '—', '—', '—', 'History'],
+  ['10:30–11:20', '—', '—', '—', '—', 'History'],
+];
+
+const TimetableModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => (
+  <Modal isOpen={isOpen} onClose={onClose} title="1st Semester Timetable" size="xl" variant="solid">
+    <div className="max-h-[70dvh] overflow-auto rounded-lg border border-slate-700">
+      <table className="w-full min-w-[600px] border-collapse text-left text-xs text-slate-200 sm:text-sm">
+        <thead className="bg-slate-800/80 text-slate-100">
+          <tr>
+            {['Period', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(heading => (
+              <th key={heading} className="border-b border-r border-slate-700 px-2 py-2.5 font-bold last:border-r-0 sm:px-3">{heading}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {timetable.map(([period, ...subjects]) => (
+            <tr key={period} className="bg-slate-950/40">
+              <th scope="row" className="border-r border-t border-slate-700 px-2 py-2.5 font-semibold text-slate-100 sm:px-3">{period}</th>
+              {subjects.map((subject, index) => (
+                <td key={`${period}-${index}`} className="border-r border-t border-slate-700 px-2 py-2.5 last:border-r-0 sm:px-3">{subject}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </Modal>
+);
+
 
 export default function App(): React.ReactNode {
   const [status, setStatus] = useState<AppStatus>('idle');
@@ -107,6 +145,7 @@ export default function App(): React.ReactNode {
   const [selectedSubjectKey, setSelectedSubjectKey] = useState<string | null>(null);
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTimetableOpen, setIsTimetableOpen] = useState(false);
   
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
       try {
@@ -818,11 +857,19 @@ export default function App(): React.ReactNode {
     };
 
     return (
-        <div className="flex flex-col items-center justify-start w-full h-full p-4 md:p-8 overflow-x-hidden">
+        <div className="flex h-full flex-col items-center justify-start w-full p-4 md:p-8 overflow-x-hidden">
             <div className={`w-full max-w-5xl h-full flex flex-col transition-all duration-300 ${selectedSubjectKey && view === 'curriculum' ? 'max-w-full' : ''}`}>
                  <header className={`transition-all duration-500 ease-in-out overflow-hidden ${view === 'study' ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'}`}>
-                    <div className="w-full text-center mb-4 md:mb-12">
-                        <h1 className="text-4xl lg:text-5xl font-bold text-white bg-gradient-to-b from-white to-slate-400 text-transparent bg-clip-text">
+                    <div className="relative min-h-[5rem] w-full text-center mb-4 md:mb-12 md:min-h-0">
+                        {view === 'curriculum' && !selectedSubjectKey && (
+                          <button onClick={() => setIsTimetableOpen(true)} aria-label="Open first semester timetable" title="Open timetable" className="absolute left-0 top-0 rounded-lg border border-slate-700 bg-slate-900/70 p-2 text-slate-300 transition-colors hover:border-sky-500/50 hover:bg-sky-500/10 hover:text-white md:top-1/2 md:-translate-y-1/2">
+                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                              <rect x="3" y="4" width="18" height="17" rx="2" />
+                              <path d="M8 2v4M16 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" />
+                            </svg>
+                          </button>
+                        )}
+                        <h1 className="relative inline-block pt-9 text-4xl font-bold text-white bg-gradient-to-b from-white to-slate-400 text-transparent bg-clip-text lg:text-5xl md:pt-0">
                           Intelligent Outlines
                         </h1>
                     </div>
@@ -866,7 +913,7 @@ export default function App(): React.ReactNode {
   const isNavBarHidden = view === 'study' || !isNavBarVisible;
 
   return (
-    <div className={`h-screen w-screen text-slate-300 antialiased overflow-hidden`}>
+    <div className={`h-[100dvh] min-h-[100dvh] w-screen text-slate-300 antialiased overflow-hidden`}>
         {renderContent()}
         <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-500 ease-in-out ${isNavBarHidden ? 'opacity-0 translate-y-24 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
           <BottomNavBar
@@ -875,13 +922,14 @@ export default function App(): React.ReactNode {
             onSettingsClick={() => setIsSettingsOpen(true)}
           />
         </div>
-        <SettingsPanel 
+                <SettingsPanel
             isOpen={isSettingsOpen}
             onClose={() => setIsSettingsOpen(false)}
             appSettings={appSettings}
             onAppSettingsChange={setAppSettings}
             onClearAllData={handleDeleteAllOutlines}
-        />
+                />
+                <TimetableModal isOpen={isTimetableOpen} onClose={() => setIsTimetableOpen(false)} />
     </div>
   );
 }
