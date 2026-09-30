@@ -871,7 +871,7 @@ export default function App(): React.ReactNode {
                         )}
                         <h1 className="relative inline-block pt-9 text-4xl font-bold text-white bg-gradient-to-b from-white to-slate-400 text-transparent bg-clip-text lg:text-5xl md:pt-0">
                           Intelligent Outlines
-                          <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 rotate-[-8deg] whitespace-nowrap font-serif text-sm font-semibold italic text-sky-300 sm:text-base">Freshman Edition</span>
+                          <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 rotate-[-8deg] whitespace-nowrap font-serif text-sm font-semibold italic text-sky-300 sm:text-base"></span>
                         </h1>
                     </div>
                 </header>
